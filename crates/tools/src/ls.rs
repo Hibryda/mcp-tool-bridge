@@ -1,6 +1,7 @@
 use bridge_core::FileEntry;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
+use std::time::UNIX_EPOCH;
 
 /// List directory contents as structured entries.
 pub async fn list_directory(
@@ -41,9 +42,12 @@ pub async fn list_directory(
                 .modified()
                 .ok()
                 .and_then(|t| {
-                    t.duration_since(std::time::UNIX_EPOCH)
-                        .ok()
-                        .map(|d| d.as_secs().to_string())
+                    t.duration_since(UNIX_EPOCH).ok().map(|d| {
+                        let secs = d.as_secs() as i64;
+                        let dt = chrono::DateTime::from_timestamp(secs, 0);
+                        dt.map(|d| d.to_rfc3339())
+                            .unwrap_or_else(|| secs.to_string())
+                    })
                 })
         } else {
             None

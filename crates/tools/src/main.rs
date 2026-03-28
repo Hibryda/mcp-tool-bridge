@@ -7,6 +7,7 @@ use rmcp::{
 };
 use serde::Deserialize;
 
+mod diff;
 mod ls;
 mod wc;
 
@@ -28,6 +29,14 @@ struct WcParams {
     path: Option<String>,
     /// Raw text input to count (for piped/inline content).
     input: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct DiffParams {
+    /// Unified diff text to parse. Provide either this or `git_args`.
+    input: Option<String>,
+    /// Arguments to pass to `git diff --no-ext-diff`. Example: ["HEAD~1"], ["--cached"], ["main..feature"].
+    git_args: Option<Vec<String>>,
 }
 
 // ── MCP Server ────────────────────────────────────────────────────────
@@ -61,6 +70,62 @@ impl ToolBridge {
                 Ok(CallToolResult::success(vec![Content::text(json)]))
             }
             Err(e) => Ok(CallToolResult::error(vec![Content::text(e.to_string())])),
+        }
+    }
+
+    #[tool(description = "Parse unified diff into structured hunks with line numbers. Provide raw diff text via `input`, or run `git diff` via `git_args`. Returns typed hunks with old/new line numbers, additions, deletions, and context.")]
+    async fn diff(
+        &self,
+        Parameters(params): Parameters<DiffParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let diff_text = match (&params.input, &params.git_args) {
+            (Some(input), None) => input.clone(),
+            (None, Some(args)) => {
+                let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+                match diff::run_diff(&arg_refs).await {
+                    Ok(output) => output,
+                    Err(e) => {
+                        return Ok(CallToolResult::error(vec![Content::text(
+                            format!("git diff failed: {e}"),
+                        )]));
+                    }
+                }
+            }
+            (Some(_), Some(_)) => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Provide either 'input' (raw diff text) or 'git_args', not both.",
+                )]));
+            }
+            (None, None) => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Provide either 'input' (raw diff text) or 'git_args' (e.g. [\"HEAD~1\"]).",
+                )]));
+            }
+        };
+
+        if diff_text.trim().is_empty() {
+            let result = diff::DiffResult {
+                format: "unified".to_string(),
+                files: vec![],
+                total_additions: 0,
+                total_deletions: 0,
+            };
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        match diff::parse_unified_diff(&diff_text) {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(fmt_err) => {
+                let json = serde_json::to_string_pretty(&fmt_err)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::error(vec![Content::text(json)]))
+            }
         }
     }
 
