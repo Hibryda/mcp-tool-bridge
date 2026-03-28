@@ -1,6 +1,6 @@
 # MCP Tool Bridge
 
-MCP servers replacing common CLI tools with structured JSON I/O. Rust cargo workspace with shared core and per-tool crates.
+MCP servers replacing common CLI tools with structured JSON I/O. Rust cargo workspace with shared core and per-tool crates. Tool priority is data-driven (71K+ Bash calls, 5K sessions): ls, wc, curl, ssh, ps, sqlite3. See `docs/README.md § Usage Analysis`.
 
 ## Operational Rules
 

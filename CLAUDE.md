@@ -1,6 +1,6 @@
 # MCP Tool Bridge
 
-MCP servers that replace common CLI tools with structured, LLM-friendly interfaces. Wraps tools like find, grep, jq, curl, docker, and git — providing structured JSON I/O instead of unstructured text output.
+MCP servers that replace common CLI tools with structured, LLM-friendly interfaces. Wraps tools like ls, wc, curl, ssh, ps, and sqlite3 — providing structured JSON I/O instead of unstructured text output. Tool selection is data-driven from 71K+ Bash calls across 5K sessions (see `docs/README.md § Usage Analysis`).
 
 ## Status
 

@@ -69,6 +69,34 @@ MCP stdio transport adds overhead vs direct CLI:
 
 For interactive use (Claude Code), this is negligible. For batch operations (find across 100K files), consider batch APIs or streaming responses.
 
+## Usage Analysis (2026-03-28)
+
+Scanned 5,050 Claude Code sessions (71,639 Bash invocations) to establish data-driven tool priority.
+
+### Already Covered (no value in wrapping)
+
+| Tool | Calls | Covered By |
+|------|------:|------------|
+| grep | 3,600 | Claude Code Grep tool |
+| find | 2,692 | Claude Code Glob tool |
+| cat/head/tail | 2,950 | Claude Code Read tool |
+| sed/awk | 218 | Claude Code Edit tool |
+| kubectl | 3,087 | Kubernetes MCP server |
+| docker | 1,506 | Docker MCP server |
+
+### Net-New Value — Revised Tool Priority
+
+| Priority | Tool | Calls | % of Bash | Complexity |
+|----------|------|------:|----------:|------------|
+| 1 | ls | 4,273 | 6.0% | Low — structured dir metadata |
+| 2 | wc | 1,489 | 2.1% | Low — trivial to wrap |
+| 3 | curl | 1,342 | 1.9% | Medium — HTTP response parsing |
+| 4 | ssh | 1,189 | 1.7% | High — security implications |
+| 5 | ps | 347 | 0.5% | Low — process listing |
+| 6 | sqlite3 | 246 | 0.3% | Medium — structured queries |
+
+34.1% of all Bash calls are wrappable CLI tools. The original priority list (find/grep high, jq medium) was based on intuition. `jq` had exactly 1 call across 5,050 sessions.
+
 ## Open Questions
 
 - Should each tool be a separate MCP server or one server with multiple tools?

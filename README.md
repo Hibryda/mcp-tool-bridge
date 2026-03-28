@@ -52,16 +52,18 @@ mcp-tool-bridge/
 └── docs/                   # Documentation
 ```
 
-## Tool Candidates
+## Tool Priority (data-driven)
 
-| Tool | Priority | Rationale |
-|------|----------|-----------|
-| `find` | High | Most common, output is trivially structured |
-| `grep` | High | Frequently used, benefits from structured match results |
-| `jq` | Medium | Already structured, but error handling is poor |
-| `curl` | Medium | Headers + body as structured response |
-| `docker` | Low | Complex, many subcommands |
-| `git` | Low | Already has good MCP wrappers |
+Based on analysis of 71,639 Bash calls across 5,050 Claude Code sessions. Tools already covered by native Claude Code tools (grep, find, cat) or existing MCP servers (kubectl, docker) are excluded.
+
+| Tool | Calls | Priority | Rationale |
+|------|------:|----------|-----------|
+| `ls` | 4,273 | High | Structured directory listings with file metadata |
+| `wc` | 1,489 | High | Line/word/byte counts — trivial to wrap |
+| `curl` | 1,342 | High | HTTP with structured response parsing |
+| `ssh` | 1,189 | Medium | Remote execution — complex security model |
+| `ps` | 347 | Medium | Process listing with structured fields |
+| `sqlite3` | 246 | Low | Structured query results |
 
 ## License
 
