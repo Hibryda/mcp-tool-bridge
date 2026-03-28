@@ -1,40 +1,22 @@
 # MCP Tool Bridge
 
-MCP servers that wrap CLI tools with structured JSON output. Measurement-first for complex tools (diff, lsof); frequency-justified for simple tools (ls, wc). Tier 1: diff, lsof, ls, wc. Tier 2: kubectl/docker/sqlite3 structured replacements. Tier 3: curl (optional). See `docs/README.md` and `.tribunal/tribunal-report.md`.
+MCP servers wrapping CLI tools with structured JSON output. 13 tools in a single Rust binary: ls, wc, diff, lsof, kubectl (list/get), docker (list/inspect/images), sqlite (query/tables), batch, pipe. See `docs/README.md` and `.tribunal/tribunal-report.md`.
 
 ## Status
 
-ls and wc tools implemented and tested (9 unit tests). MCP server runs over stdio via rmcp 1.3.0. Next: benchmark phase (diff + lsof).
+v0.1 complete — all tools implemented and tested (45 unit tests). MCP server registered globally in Claude Code. Release binary: 9.6MB. Remaining: benchmark diff/lsof (optional), CI, curl (Tier 3).
 
 ## Tech Stack
 
-- Rust (2021 edition)
-- Cargo workspace
+- Rust (2021 edition), Cargo workspace
 - rmcp 1.3.0 (official MCP SDK — server, transport-io, macros, schemars features)
-- tokio (async runtime)
-- serde / serde_json / schemars 1.0 (JSON serialization + schema generation)
+- bollard (Docker Engine API), rusqlite (bundled SQLite)
+- tokio, serde / serde_json / schemars 1.0, chrono
 - thiserror 2, anyhow, tracing
 
 ## Architecture
 
-Cargo workspace with shared core and individual tool crates:
-
-```
-mcp-tool-bridge/
-├── Cargo.toml              # Workspace root
-├── crates/
-│   ├── bridge-core/        # Shared MCP server scaffolding
-│   │   └── src/lib.rs
-│   └── tools/              # Individual tool wrappers
-│       └── src/lib.rs
-└── docs/
-```
-
-Each tool wrapper:
-1. Accepts structured JSON input via MCP
-2. Invokes the underlying CLI tool
-3. Parses output into structured JSON
-4. Returns typed results with proper error handling
+Single binary with dispatch layer: free functions in `dispatch.rs` shared by rmcp `tool_router` and batch `HashMap`. `--tools` flag filters registration at startup.
 
 ## Documentation (SOURCE OF TRUTH)
 
@@ -42,20 +24,10 @@ Each tool wrapper:
 
 ## Development
 
-### Setup
-
 ```bash
-cargo build
-```
-
-### Testing
-
-```bash
-cargo test
-```
-
-### Running
-
-```bash
-cargo run -p tools
+cargo build                          # dev build
+cargo build --release                # release (9.6MB binary)
+cargo test                           # 45 tests
+cargo run -p mcp-tool-bridge         # run with all tools
+cargo run -p mcp-tool-bridge -- --tools ls,wc,diff  # selective
 ```

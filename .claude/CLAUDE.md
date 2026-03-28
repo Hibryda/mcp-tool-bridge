@@ -1,6 +1,6 @@
 # MCP Tool Bridge
 
-MCP servers wrapping CLI tools with structured JSON output. Measurement-first for complex tools (diff, lsof); frequency-justified for simple tools (ls, wc). Tier 1: diff, lsof, ls, wc. Tier 2: kubectl/docker/sqlite3 structured replacements. Tier 3: curl (optional). See `docs/README.md` and `.tribunal/tribunal-report.md`.
+13-tool Rust MCP server: ls, wc, diff, lsof, kubectl (list/get), docker (list/inspect/images), sqlite (query/tables), batch, pipe. 45 tests. `--tools` flag for selective registration. See `docs/README.md` and `.tribunal/tribunal-report.md`.
 
 ## Operational Rules
 

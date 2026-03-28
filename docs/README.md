@@ -101,25 +101,31 @@ Tribunal debate (4 rounds, 49 objections) established: value = parsing-difficult
 - `ls` — structured dir metadata with file size, type, permissions. High frequency (4,273 calls). Owner override.
 - `wc` — typed `{lines, words, bytes, chars}` per file. High frequency (1,489 calls). Owner override.
 
-**Tier 2 (conditional on category audit of existing MCP servers):**
-- `kubectl` — structured replacement if existing server returns raw text
-- `docker` — bollard-backed native API (sync-only operations)
-- `sqlite3` — rusqlite with security constraints
+**Tier 2 (category audit confirmed — all existing servers return raw text):**
+- `kubectl` — all-resource passthrough via `-o json`, typed metadata, `serde_json::Value` for spec/status
+- `docker` — bollard-backed native Docker Engine API (sync-only: list, inspect, images)
+- `sqlite3` — rusqlite read-only, CLI-flag-only path whitelist, `O_NOFOLLOW` security
 
-**Tier 3 (if time permits):**
-- `curl` — structured HTTP response envelope (status, headers, timing, redirect chain). Body as string.
+**Meta-tools (supertribunal, 50 objections, 78% confidence):**
+- `batch` — generic parallel executor. Any registered tool, concurrent dispatch, per-op error isolation.
+- `pipe` — structured filtering on listing tool output. AND semantics, dot notation, limit.
 
-See `.tribunal/tribunal-report.md` for full debate transcript and rationale.
+**Tier 3 (optional):**
+- `curl` — structured HTTP response envelope (status, headers, timing, redirect chain).
+
+See `.tribunal/tribunal-report.md` for debate transcripts and rationale.
 
 ## Resolved Questions
 
-- **One server or many?** Single binary with `--tools` opt-in flag (tribunal S-1/OBJ-19).
-- **Faithful or pragmatic wrapping?** Pragmatic subset — agents use ~5-10 flags per tool (tribunal F4-PLATO).
-- **Composability?** Dropped — MCP composability is strictly worse than shell piping (tribunal F5-PLATO).
+- **One server or many?** Single binary with `--tools` opt-in flag.
+- **Faithful or pragmatic wrapping?** Pragmatic subset — agents use ~5-10 flags per tool.
+- **Composability?** Replaced by `pipe` meta-tool for filtering and `batch` for parallel ops.
+- **Category audit?** Done — kubectl (0/7 structured), docker (0/2 structured). See `docs/category-audit.md`.
+- **Piped commands?** `pipe` tool handles source→filter patterns. Batch-of-pipes deferred to v2.
 
 ## Open Questions
 
-- Rust vs TypeScript: Rust acceptable if learning goal; TypeScript wins on velocity and ecosystem fit.
 - Whether current Claude models actually misparse unified diff at rates justifying structured wrapping.
-- Whether existing kubectl/docker MCP servers already return structured JSON (category audit needed).
 - Statistical power of 30-task benchmark with ±18pp confidence interval.
+- Optimal batch concurrency limit (default 4) — no data on typical batch sizes.
+- Whether to add composite tools (ls_count, wc_multi) based on call logging data.
