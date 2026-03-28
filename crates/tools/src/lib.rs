@@ -3,6 +3,7 @@ pub mod batch;
 mod benchmark;
 pub mod curl;
 pub mod diff;
+pub mod find;
 pub mod dispatch;
 pub mod docker;
 pub mod kubectl;

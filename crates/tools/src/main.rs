@@ -16,6 +16,7 @@ mod batch;
 mod curl;
 mod diff;
 mod dispatch;
+mod find;
 mod docker;
 mod kubectl;
 mod ls;
@@ -114,6 +115,25 @@ struct SqliteQueryParams {
 struct SqliteTablesParams {
     /// Path to the SQLite database file.
     db_path: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct FindParams {
+    /// Root directory to search from.
+    path: Option<String>,
+    /// Name pattern with glob support (*.rs, Cargo*, etc).
+    name: Option<String>,
+    /// File type filter: "file", "directory", or "symlink".
+    #[serde(rename = "type")]
+    file_type: Option<String>,
+    /// Maximum depth to recurse.
+    max_depth: Option<u32>,
+    /// Minimum file size in bytes.
+    min_size: Option<u64>,
+    /// Maximum file size in bytes.
+    max_size: Option<u64>,
+    /// Maximum results to return (default 1000).
+    limit: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -332,6 +352,30 @@ impl ToolBridge {
             Err(e) => Ok(CallToolResult::error(vec![Content::text(
                 format!("lsof failed: {e}"),
             )])),
+        }
+    }
+
+    #[tool(description = "Recursively find files with filters: name glob (*.rs, Cargo*), type (file/directory/symlink), size range, max depth. Returns structured entries with path, type, size, permissions, modified time, depth.")]
+    async fn find(
+        &self,
+        Parameters(params): Parameters<FindParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let value = serde_json::json!({
+            "path": params.path.as_deref().unwrap_or("."),
+            "name": params.name,
+            "type": params.file_type,
+            "max_depth": params.max_depth,
+            "min_size": params.min_size,
+            "max_size": params.max_size,
+            "limit": params.limit,
+        });
+        match dispatch::do_find(value).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
         }
     }
 
@@ -610,7 +654,7 @@ impl ServerHandler for ToolBridge {
 
 const ALL_TOOLS: &[&str] = &[
     "batch", "curl", "diff", "docker_images", "docker_inspect", "docker_list",
-    "kubectl_get", "kubectl_list", "ls", "lsof", "pipe",
+    "find", "kubectl_get", "kubectl_list", "ls", "lsof", "pipe",
     "sqlite_query", "sqlite_tables", "wc",
 ];
 

@@ -3,7 +3,7 @@
 
 use serde_json::Value;
 
-use crate::{curl, diff, docker, kubectl, ls, lsof, sqlite, wc};
+use crate::{curl, diff, docker, find, kubectl, ls, lsof, sqlite, wc};
 
 /// Dispatch result: either a JSON value or an error string.
 pub type DispatchResult = Result<Value, String>;
@@ -243,6 +243,23 @@ pub async fn do_sqlite_tables(params: Value) -> DispatchResult {
     serde_json::to_value(&tables).map_err(|e| e.to_string())
 }
 
+// ── find ──────────────────────────────────────────────────────────────
+
+pub async fn do_find(params: Value) -> DispatchResult {
+    let root = params.get("path").and_then(|v| v.as_str()).unwrap_or(".");
+    let name = params.get("name").and_then(|v| v.as_str());
+    let file_type = params.get("type").and_then(|v| v.as_str());
+    let max_depth = params.get("max_depth").and_then(|v| v.as_u64()).map(|v| v as u32);
+    let min_size = params.get("min_size").and_then(|v| v.as_u64());
+    let max_size = params.get("max_size").and_then(|v| v.as_u64());
+    let limit = params.get("limit").and_then(|v| v.as_u64()).map(|v| v as usize);
+
+    let result = find::find_files(root, name, file_type, max_depth, min_size, max_size, limit)
+        .await
+        .map_err(|e| e.to_string())?;
+    serde_json::to_value(&result).map_err(|e| e.to_string())
+}
+
 // ── curl ──────────────────────────────────────────────────────────────
 
 pub async fn do_curl(params: Value) -> DispatchResult {
@@ -296,6 +313,7 @@ pub fn build_dispatch_table(enabled: &Option<std::collections::HashSet<String>>)
     }
 
     register!("curl", do_curl);
+    register!("find", do_find);
     register!("ls", do_ls);
     register!("wc", do_wc);
     register!("diff", do_diff);

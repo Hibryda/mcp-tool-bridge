@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 /// Allowed source tools that produce filterable array output.
 const SOURCE_WHITELIST: &[&str] = &[
-    "ls", "lsof", "kubectl_list", "docker_list", "docker_images",
+    "find", "ls", "lsof", "kubectl_list", "docker_list", "docker_images",
 ];
 
 /// A single filter condition.
@@ -124,6 +124,13 @@ fn extract_array(value: &Value, tool: &str) -> Result<Vec<Value>, String> {
             value.as_array()
                 .cloned()
                 .ok_or_else(|| "ls output is not an array".to_string())
+        }
+        "find" => {
+            // find returns {entries: [...]}
+            value.get("entries")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .ok_or_else(|| "find output has no 'entries' array".to_string())
         }
         "lsof" => {
             // lsof returns {processes: [...]}
