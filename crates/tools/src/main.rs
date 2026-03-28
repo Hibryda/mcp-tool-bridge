@@ -10,13 +10,16 @@ use rmcp::{
     transport::stdio,
 };
 use serde::Deserialize;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+mod batch;
 mod diff;
+mod dispatch;
 mod docker;
 mod kubectl;
 mod ls;
 mod lsof;
+mod pipe;
 mod sqlite;
 mod wc;
 
@@ -52,10 +55,12 @@ struct LsParams {
     long: Option<bool>,
 }
 
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, serde::Serialize, schemars::JsonSchema)]
 struct WcParams {
-    /// File path to count. Mutually exclusive with `input`.
+    /// File path to count. Mutually exclusive with `input` and `paths`.
     path: Option<String>,
+    /// Multiple file paths to count in one call. Returns array of results.
+    paths: Option<Vec<String>>,
     /// Raw text input to count (for piped/inline content).
     input: Option<String>,
 }
@@ -110,20 +115,74 @@ struct SqliteTablesParams {
     db_path: String,
 }
 
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct BatchParams {
+    /// Array of operations to execute in parallel. Each has a tool name and params.
+    operations: Vec<BatchOperationParams>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct BatchOperationParams {
+    /// Tool name (must be registered in this server).
+    tool: String,
+    /// Parameters for the tool (same schema as calling the tool directly).
+    params: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct PipeParams {
+    /// Source tool to run. Must be a listing tool: ls, lsof, kubectl_list, docker_list, docker_images.
+    source: PipeSourceParams,
+    /// Filters to apply (AND semantics — all must match). Each filter checks a field against a pattern.
+    filters: Vec<PipeFilterParams>,
+    /// Maximum number of results to return.
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct PipeSourceParams {
+    /// Tool name (must be a listing tool).
+    tool: String,
+    /// Parameters for the source tool.
+    params: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct PipeFilterParams {
+    /// Field name to filter on. Supports dot notation for nested fields (e.g. "metadata.name").
+    field: String,
+    /// Pattern to match against the field value.
+    pattern: String,
+    /// Match mode: "contains", "equals", or "starts_with".
+    mode: String,
+}
+
 // ── MCP Server ────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct ToolBridge {
     tool_router: ToolRouter<Self>,
     enabled_tools: Option<HashSet<String>>,
+    dispatch_table: HashMap<String, dispatch::DispatchFn>,
+}
+
+impl std::fmt::Debug for ToolBridge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ToolBridge")
+            .field("enabled_tools", &self.enabled_tools)
+            .field("dispatch_table_keys", &self.dispatch_table.keys().collect::<Vec<_>>())
+            .finish()
+    }
 }
 
 #[tool_router]
 impl ToolBridge {
     fn new(enabled: Option<HashSet<String>>) -> Self {
+        let dispatch_table = dispatch::build_dispatch_table(&enabled);
         Self {
             tool_router: Self::tool_router(),
             enabled_tools: enabled,
+            dispatch_table,
         }
     }
 
@@ -382,31 +441,74 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "Count lines, words, bytes, and characters. Provide either a file path or raw text input. Returns structured counts.")]
+    #[tool(description = "Count lines, words, bytes, and characters. Provide a file path, multiple paths, or raw text input. Returns structured counts.")]
     async fn wc(
         &self,
         Parameters(params): Parameters<WcParams>,
     ) -> Result<CallToolResult, McpError> {
-        let result = match (&params.path, &params.input) {
-            (Some(path), None) => wc::word_count(path).await.map_err(|e| {
-                McpError::internal_error(e.to_string(), None)
-            })?,
-            (None, Some(input)) => wc::word_count_str(input),
-            (Some(_), Some(_)) => {
-                return Ok(CallToolResult::error(vec![Content::text(
-                    "Provide either 'path' or 'input', not both.",
-                )]));
+        // Use dispatch free function which handles paths/path/input
+        let value = serde_json::to_value(&params)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        match dispatch::do_wc(value).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
             }
-            (None, None) => {
-                return Ok(CallToolResult::error(vec![Content::text(
-                    "Provide either 'path' (file to count) or 'input' (text to count).",
-                )]));
-            }
-        };
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
 
+    #[tool(description = "Run multiple tool operations in a single call. Operations execute in parallel. Each operation uses the same params as calling the tool directly. Returns all results with per-operation success/error isolation.")]
+    async fn batch(
+        &self,
+        Parameters(params): Parameters<BatchParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let ops: Vec<batch::BatchOperation> = params.operations.into_iter()
+            .map(|op| batch::BatchOperation {
+                tool: op.tool,
+                params: op.params,
+            })
+            .collect();
+
+        let result = batch::execute_batch(ops, &self.dispatch_table, 4, 30).await;
         let json = serde_json::to_string_pretty(&result)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         Ok(CallToolResult::success(vec![Content::text(json)]))
+    }
+
+    #[tool(description = "Run a listing tool and filter its output on structured fields. Filters use AND semantics. Source tools: ls, lsof, kubectl_list, docker_list, docker_images. Filter modes: contains, equals, starts_with. Supports dot notation for nested fields (e.g. metadata.name).")]
+    async fn pipe(
+        &self,
+        Parameters(params): Parameters<PipeParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let request = pipe::PipeRequest {
+            source: pipe::PipeSource {
+                tool: params.source.tool,
+                params: params.source.params,
+            },
+            filters: params.filters.into_iter().map(|f| {
+                pipe::Filter {
+                    field: f.field,
+                    pattern: f.pattern,
+                    mode: match f.mode.as_str() {
+                        "equals" => pipe::FilterMode::Equals,
+                        "starts_with" => pipe::FilterMode::StartsWith,
+                        _ => pipe::FilterMode::Contains,
+                    },
+                }
+            }).collect(),
+            limit: params.limit,
+        };
+
+        match pipe::execute_pipe(request, &self.dispatch_table).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
     }
 }
 
@@ -461,8 +563,8 @@ impl ServerHandler for ToolBridge {
 // ── CLI argument parsing ──────────────────────────────────────────────
 
 const ALL_TOOLS: &[&str] = &[
-    "diff", "docker_images", "docker_inspect", "docker_list",
-    "kubectl_get", "kubectl_list", "ls", "lsof",
+    "batch", "diff", "docker_images", "docker_inspect", "docker_list",
+    "kubectl_get", "kubectl_list", "ls", "lsof", "pipe",
     "sqlite_query", "sqlite_tables", "wc",
 ];
 
