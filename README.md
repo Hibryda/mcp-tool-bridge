@@ -1,6 +1,6 @@
 # MCP Tool Bridge
 
-MCP servers that replace common CLI tools with structured, LLM-friendly interfaces. Instead of parsing unstructured text output from `find`, `grep`, `jq`, etc., Claude Code gets structured JSON with proper types, error handling, and composability.
+MCP servers that wrap CLI tools with structured JSON output, targeting tools where parsing difficulty justifies the overhead. Measurement-first: benchmarks prove value before building. Strategy validated through adversarial debate (4 rounds, 49 objections).
 
 ## Getting Started
 
@@ -37,7 +37,7 @@ cargo run -p tools
 
 ## Why?
 
-LLMs interact with CLI tools by constructing commands, executing them, and parsing unstructured text. MCP Tool Bridge replaces this with structured JSON-RPC — typed inputs, typed outputs, proper errors.
+LLMs interact with CLI tools by constructing commands, executing them, and parsing unstructured text. For tools with complex output (unified diffs, file descriptor tables), this parsing frequently fails. MCP Tool Bridge provides structured JSON for tools where the parsing difficulty justifies the MCP schema overhead.
 
 ## Project Structure
 
@@ -52,18 +52,24 @@ mcp-tool-bridge/
 └── docs/                   # Documentation
 ```
 
-## Tool Priority (data-driven)
+## Tool Priority (tribunal-validated)
 
-Based on analysis of 71,639 Bash calls across 5,050 Claude Code sessions. Tools already covered by native Claude Code tools (grep, find, cat) or existing MCP servers (kubectl, docker) are excluded.
+Prioritized by parsing-difficulty x error-cost, not frequency. Validated via Feynman first-principles, Plato invariant-consistency, and adversarial tribunal debate.
 
-| Tool | Calls | Priority | Rationale |
-|------|------:|----------|-----------|
-| `ls` | 4,273 | High | Structured directory listings with file metadata |
-| `wc` | 1,489 | High | Line/word/byte counts — trivial to wrap |
-| `curl` | 1,342 | High | HTTP with structured response parsing |
-| `ssh` | 1,189 | Medium | Remote execution — complex security model |
-| `ps` | 347 | Medium | Process listing with structured fields |
-| `sqlite3` | 246 | Low | Structured query results |
+**Tier 1 (measurement-gated):**
+| Tool | Rationale |
+|------|-----------|
+| `diff` | Complex unified diff hunks — agents misparse line ranges and hunk boundaries |
+| `lsof` | Structured fd table — genuine ecosystem gap, version-keyed parsing needed |
+
+**Tier 2 (conditional on category audit):**
+| Tool | Rationale |
+|------|-----------|
+| `kubectl` | Structured replacement if existing MCP server returns raw text |
+| `docker` | bollard-backed native API, sync-only operations |
+| `sqlite3` | rusqlite with CLI-flag-only path whitelist, read-only default |
+
+**Dropped:** `ls`, `wc`, `curl` — trivially parseable output or schema overhead exceeds value. See `docs/README.md` for full analysis.
 
 ## License
 

@@ -16,18 +16,18 @@ MCP Tool Bridge creates MCP server wrappers around common CLI tools, providing C
 
 ### 1. Structured Over Unstructured
 
-Every tool wrapper transforms text output into typed JSON:
-- File paths → `{path: String, size: u64, modified: DateTime}`
-- Match results → `{file: String, line: u32, content: String, context: Vec<String>}`
+Tool wrappers transform text output into typed JSON where parsing difficulty justifies the overhead:
+- Diff hunks → `{hunks: [{start_a, count_a, start_b, count_b, lines}]}`
+- File descriptors → `{pid, fd, type, protocol, address, file}`
 - Errors → `{code: String, message: String, suggestion: Option<String>}`
 
-### 2. Faithful Wrapping
+### 2. Pragmatic Subset (not Faithful Wrapping)
 
-Tool wrappers should expose the same capabilities as the underlying tool, not a subset. If `grep` supports `-C` for context, the MCP wrapper should too. The goal is zero capability loss with structured gain.
+Wrappers expose the ~5-10 most common flag combinations agents actually use, not all capabilities. `curl` has 200+ flags; agents use a handful. Machine-readable flags (`-o json`, `-F`, `--unified`) are preferred over parsing human-readable output.
 
-### 3. Composable
+### 3. Measurement-Gated
 
-MCP tools can call each other. `find` results can be piped to `grep`. This is modeled as tool composition, not shell piping.
+No tool is built without evidence that structured output measurably improves agent performance. The qualification gate: 30 adversarial extraction tasks, structured accuracy must exceed raw text accuracy by ≥15pp (calibration-derived threshold).
 
 ## Architecture
 
@@ -84,22 +84,41 @@ Scanned 5,050 Claude Code sessions (71,639 Bash invocations) to establish data-d
 | kubectl | 3,087 | Kubernetes MCP server |
 | docker | 1,506 | Docker MCP server |
 
-### Net-New Value — Revised Tool Priority
+### Frequency-Based Priority (raw data, superseded by tribunal)
 
-| Priority | Tool | Calls | % of Bash | Complexity |
-|----------|------|------:|----------:|------------|
-| 1 | ls | 4,273 | 6.0% | Low — structured dir metadata |
-| 2 | wc | 1,489 | 2.1% | Low — trivial to wrap |
-| 3 | curl | 1,342 | 1.9% | Medium — HTTP response parsing |
-| 4 | ssh | 1,189 | 1.7% | High — security implications |
-| 5 | ps | 347 | 0.5% | Low — process listing |
-| 6 | sqlite3 | 246 | 0.3% | Medium — structured queries |
+| Tool | Calls | % of Bash | Notes |
+|------|------:|----------:|-------|
+| ls | 4,273 | 6.0% | **DROPPED** — trivially parseable, schema overhead exceeds savings |
+| wc | 1,489 | 2.1% | **DROPPED** — ~5 tokens saved/call vs ~2-4K schema cost/session |
+| curl | 1,342 | 1.9% | **DROPPED** — JSON body needs no wrapper; non-JSON body not helped |
+| ssh | 1,189 | 1.7% | Deferred — complex security model |
+| ps | 347 | 0.5% | Tier 2 candidate |
+| sqlite3 | 246 | 0.3% | Tier 2 — rusqlite with CLI-flag-only whitelist |
 
-34.1% of all Bash calls are wrappable CLI tools. The original priority list (find/grep high, jq medium) was based on intuition. `jq` had exactly 1 call across 5,050 sessions.
+### Tribunal-Revised Priority (2026-03-28)
+
+Based on Feynman first-principles, Plato invariant-consistency, and 4-round adversarial debate (49 objections). Key metric: value = parsing-difficulty × error-cost, NOT frequency.
+
+**Tier 1 (measurement-gated):**
+- `diff` — complex unified diff hunks, agents misparse line ranges
+- `lsof` — structured fd table, genuine ecosystem gap, version-keyed parsing
+
+**Tier 2 (conditional on category audit of existing MCP servers):**
+- `kubectl` — structured replacement if existing server returns raw text
+- `docker` — bollard-backed native API (sync-only operations)
+- `sqlite3` — rusqlite with security constraints
+
+See `.tribunal/tribunal-report.md` for full debate transcript and rationale.
+
+## Resolved Questions
+
+- **One server or many?** Single binary with `--tools` opt-in flag (tribunal S-1/OBJ-19).
+- **Faithful or pragmatic wrapping?** Pragmatic subset — agents use ~5-10 flags per tool (tribunal F4-PLATO).
+- **Composability?** Dropped — MCP composability is strictly worse than shell piping (tribunal F5-PLATO).
 
 ## Open Questions
 
-- Should each tool be a separate MCP server or one server with multiple tools?
-- How to handle tools that produce very large output (e.g., `find /` )?
-- Should the bridge intercept actual shell commands, or only be used via MCP?
-- How to version tool wrappers independently?
+- Rust vs TypeScript: Rust acceptable if learning goal; TypeScript wins on velocity and ecosystem fit.
+- Whether current Claude models actually misparse unified diff at rates justifying structured wrapping.
+- Whether existing kubectl/docker MCP servers already return structured JSON (category audit needed).
+- Statistical power of 30-task benchmark with ±18pp confidence interval.

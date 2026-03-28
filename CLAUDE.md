@@ -1,10 +1,10 @@
 # MCP Tool Bridge
 
-MCP servers that replace common CLI tools with structured, LLM-friendly interfaces. Wraps tools like ls, wc, curl, ssh, ps, and sqlite3 — providing structured JSON I/O instead of unstructured text output. Tool selection is data-driven from 71K+ Bash calls across 5K sessions (see `docs/README.md § Usage Analysis`).
+MCP servers that wrap CLI tools with structured JSON output, targeting tools where parsing difficulty justifies the overhead. Measurement-first approach: benchmark proves value before building. Tier 1: diff, lsof. Tier 2: kubectl/docker/sqlite3 structured replacements. See `docs/README.md` and `.tribunal/tribunal-report.md`.
 
 ## Status
 
-Early stage — scaffolding complete, implementation not started.
+Pre-implementation — scaffolding complete, strategy validated via tribunal debate. Next: benchmark phase (diff + lsof).
 
 ## Tech Stack
 
