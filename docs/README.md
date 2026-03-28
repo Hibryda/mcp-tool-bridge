@@ -33,32 +33,28 @@ No tool is built without evidence that structured output measurably improves age
 
 ### bridge-core
 
-Shared infrastructure:
-- MCP server setup (stdio transport, JSON-RPC)
-- Tool registration framework
-- Common types (file paths, match results, errors)
-- Process execution utilities (spawn, capture, timeout)
+Shared types and utilities (`crates/bridge-core/src/lib.rs`):
+- `BridgeError` — typed errors: CommandFailed, CommandNotFound, Io, Parse, Timeout
+- `FileEntry` — structured file metadata (name, path, type, size, permissions, modified)
+- `WcResult` — word count result (file, lines, words, bytes, chars)
+- `run_command()` — async process execution with error mapping
 
-### tools
+### tools (binary: `mcp-tool-bridge`)
 
-Individual tool wrappers. Each wrapper:
-1. Defines input schema (serde-derived structs)
-2. Validates and translates to CLI arguments
-3. Executes the underlying tool
-4. Parses output into structured response
-5. Maps exit codes to typed errors
+MCP server binary (`crates/tools/src/main.rs`) using rmcp 1.3.0 `#[tool_router]` pattern:
+- `ls` tool — lists directory contents via `tokio::fs::read_dir`, returns `Vec<FileEntry>`
+- `wc` tool — counts lines/words/bytes/chars from file path or inline text input
 
 ## Rust MCP Ecosystem
 
-Decision: Rust over Zig. Rationale:
-- serde for zero-effort JSON serialization
-- tokio for mature async I/O (MCP needs stdio streams)
-- Community MCP crates exist (rmcp, mcp-server)
-- Zig would require writing JSON-RPC protocol from scratch
+**Decision: rmcp 1.3.0** (official Anthropic SDK, 3.2K stars). Evaluated vs rust-mcp-sdk 0.9.0 (163 stars).
 
-MCP crate selection (TBD):
-- `rmcp` — more active, higher-level API
-- `mcp-server` — lower-level, more control
+Rationale:
+- Macro-driven tool definition (`#[tool_router]`, `#[tool]`, `Parameters<T>`)
+- Official SDK — Anthropic-maintained, production adoption (OpenAI Codex migrated to it)
+- serde + schemars for auto-generated JSON schemas from Rust structs
+
+**CRITICAL: Claude Code bug #25081** — omit `outputSchema` and `instructions` fields from MCP responses, or `tools/list` silently returns empty with no error.
 
 ## Performance Considerations
 

@@ -4,15 +4,16 @@ MCP servers that wrap CLI tools with structured JSON output. Measurement-first f
 
 ## Status
 
-Pre-implementation — scaffolding complete, strategy validated via tribunal debate. Next: benchmark phase (diff + lsof).
+ls and wc tools implemented and tested (9 unit tests). MCP server runs over stdio via rmcp 1.3.0. Next: benchmark phase (diff + lsof).
 
 ## Tech Stack
 
 - Rust (2021 edition)
 - Cargo workspace
+- rmcp 1.3.0 (official MCP SDK — server, transport-io, macros, schemars features)
 - tokio (async runtime)
-- serde / serde_json (JSON serialization)
-- MCP crate (TBD — rmcp or mcp-server)
+- serde / serde_json / schemars 1.0 (JSON serialization + schema generation)
+- thiserror 2, anyhow, tracing
 
 ## Architecture
 

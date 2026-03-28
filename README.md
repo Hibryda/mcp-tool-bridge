@@ -17,8 +17,8 @@ cargo build
 ### Running
 
 ```bash
-# Run a specific tool server
-cargo run -p tools
+# Run the MCP server
+cargo run -p mcp-tool-bridge
 
 # Register as MCP server in Claude Code settings
 ```
@@ -28,7 +28,7 @@ cargo run -p tools
   "mcpServers": {
     "tool-bridge": {
       "command": "cargo",
-      "args": ["run", "-p", "tools"],
+      "args": ["run", "-p", "mcp-tool-bridge"],
       "cwd": "/home/hibryda/code/ai/mcp-tool-bridge"
     }
   }
