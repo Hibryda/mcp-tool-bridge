@@ -1,6 +1,6 @@
 # MCP Tool Bridge
 
-MCP servers that wrap CLI tools with structured JSON output, targeting tools where parsing difficulty justifies the overhead. Measurement-first approach: benchmark proves value before building. Tier 1: diff, lsof. Tier 2: kubectl/docker/sqlite3 structured replacements. See `docs/README.md` and `.tribunal/tribunal-report.md`.
+MCP servers that wrap CLI tools with structured JSON output. Measurement-first for complex tools (diff, lsof); frequency-justified for simple tools (ls, wc). Tier 1: diff, lsof, ls, wc. Tier 2: kubectl/docker/sqlite3 structured replacements. Tier 3: curl (optional). See `docs/README.md` and `.tribunal/tribunal-report.md`.
 
 ## Status
 

@@ -18,12 +18,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - **Strategy pivot:** measurement-first approach — benchmark before building
-- **Tool priority:** replaced frequency-based (ls, wc, curl) with value-based (diff, lsof)
+- **Tool priority:** hybrid approach — measurement-gated (diff, lsof) + frequency-justified (ls, wc)
 - **Design principles:** "faithful wrapping" replaced with "pragmatic subset"; "composability" dropped
 - **Architecture:** single binary with --tools opt-in (not separate servers)
 - Updated all docs, CLAUDE.md files, and README to reflect tribunal findings
 
 ### Removed
-- `ls`, `wc`, `curl` from tool scope (trivially parseable or schema overhead exceeds value)
+- `curl` demoted to Tier 3 / optional (JSON body needs no wrapper)
 - "Composability" design principle (MCP round-trips worse than shell piping)
 - "Faithful wrapping" design principle (agents use ~5-10 flags per tool, not 200+)

@@ -84,29 +84,34 @@ Scanned 5,050 Claude Code sessions (71,639 Bash invocations) to establish data-d
 | kubectl | 3,087 | Kubernetes MCP server |
 | docker | 1,506 | Docker MCP server |
 
-### Frequency-Based Priority (raw data, superseded by tribunal)
+### Frequency Data (from 71K Bash calls)
 
 | Tool | Calls | % of Bash | Notes |
 |------|------:|----------:|-------|
-| ls | 4,273 | 6.0% | **DROPPED** — trivially parseable, schema overhead exceeds savings |
-| wc | 1,489 | 2.1% | **DROPPED** — ~5 tokens saved/call vs ~2-4K schema cost/session |
-| curl | 1,342 | 1.9% | **DROPPED** — JSON body needs no wrapper; non-JSON body not helped |
+| ls | 4,273 | 6.0% | Tier 1 — structured dir metadata |
+| wc | 1,489 | 2.1% | Tier 1 — typed counts per file |
+| curl | 1,342 | 1.9% | Tier 3 — structured HTTP response (optional) |
 | ssh | 1,189 | 1.7% | Deferred — complex security model |
 | ps | 347 | 0.5% | Tier 2 candidate |
 | sqlite3 | 246 | 0.3% | Tier 2 — rusqlite with CLI-flag-only whitelist |
 
-### Tribunal-Revised Priority (2026-03-28)
+### Final Priority (tribunal + owner overrides, 2026-03-28)
 
-Based on Feynman first-principles, Plato invariant-consistency, and 4-round adversarial debate (49 objections). Key metric: value = parsing-difficulty × error-cost, NOT frequency.
+Tribunal debate (4 rounds, 49 objections) established: value = parsing-difficulty × error-cost. Owner overrides: ls and wc retained for frequency value despite low parsing difficulty.
 
-**Tier 1 (measurement-gated):**
-- `diff` — complex unified diff hunks, agents misparse line ranges
-- `lsof` — structured fd table, genuine ecosystem gap, version-keyed parsing
+**Tier 1 (build first):**
+- `diff` — complex unified diff hunks, agents misparse line ranges. Measurement-gated: 30-task benchmark.
+- `lsof` — structured fd table, genuine ecosystem gap, version-keyed parsing. Measurement-gated.
+- `ls` — structured dir metadata with file size, type, permissions. High frequency (4,273 calls). Owner override.
+- `wc` — typed `{lines, words, bytes, chars}` per file. High frequency (1,489 calls). Owner override.
 
 **Tier 2 (conditional on category audit of existing MCP servers):**
 - `kubectl` — structured replacement if existing server returns raw text
 - `docker` — bollard-backed native API (sync-only operations)
 - `sqlite3` — rusqlite with security constraints
+
+**Tier 3 (if time permits):**
+- `curl` — structured HTTP response envelope (status, headers, timing, redirect chain). Body as string.
 
 See `.tribunal/tribunal-report.md` for full debate transcript and rationale.
 

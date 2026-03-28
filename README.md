@@ -56,11 +56,13 @@ mcp-tool-bridge/
 
 Prioritized by parsing-difficulty x error-cost, not frequency. Validated via Feynman first-principles, Plato invariant-consistency, and adversarial tribunal debate.
 
-**Tier 1 (measurement-gated):**
+**Tier 1 (build first):**
 | Tool | Rationale |
 |------|-----------|
-| `diff` | Complex unified diff hunks — agents misparse line ranges and hunk boundaries |
-| `lsof` | Structured fd table — genuine ecosystem gap, version-keyed parsing needed |
+| `diff` | Complex unified diff hunks — agents misparse line ranges. Measurement-gated. |
+| `lsof` | Structured fd table — genuine ecosystem gap. Measurement-gated. |
+| `ls` | Structured dir metadata (size, type, perms). Highest frequency (4,273 calls). |
+| `wc` | Typed `{lines, words, bytes, chars}` per file. High frequency (1,489 calls). |
 
 **Tier 2 (conditional on category audit):**
 | Tool | Rationale |
@@ -69,7 +71,7 @@ Prioritized by parsing-difficulty x error-cost, not frequency. Validated via Fey
 | `docker` | bollard-backed native API, sync-only operations |
 | `sqlite3` | rusqlite with CLI-flag-only path whitelist, read-only default |
 
-**Dropped:** `ls`, `wc`, `curl` — trivially parseable output or schema overhead exceeds value. See `docs/README.md` for full analysis.
+**Tier 3 (optional):** `curl` — structured HTTP response envelope. See `docs/README.md` for full analysis.
 
 ## License
 
