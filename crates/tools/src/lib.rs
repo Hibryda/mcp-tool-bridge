@@ -1,3 +1,2 @@
-pub fn placeholder() {
-    // TODO: Individual tool wrappers (find, grep, jq, curl, etc.)
-}
+pub mod ls;
+pub mod wc;
