@@ -289,22 +289,28 @@ impl ToolBridge {
     ) -> Result<CallToolResult, McpError> {
         let mut args: Vec<String> = vec!["-n".to_string(), "-P".to_string()];
 
-        if let Some(ref port) = params.port {
-            let port_filter = if port.starts_with(':') {
-                format!("-i{}", port)
-            } else {
-                format!("-i:{}", port)
-            };
-            args.push(port_filter);
+        // Combine protocol and port into single -i flag
+        match (params.protocol.as_deref(), params.port.as_deref()) {
+            (Some(pr), Some(pt)) => {
+                let pt = pt.strip_prefix(':').unwrap_or(pt);
+                args.push(format!("-i{pr}:{pt}"));
+            }
+            (None, Some(pt)) => {
+                if pt.starts_with(':') {
+                    args.push(format!("-i{pt}"));
+                } else {
+                    args.push(format!("-i:{pt}"));
+                }
+            }
+            (Some(pr), None) => {
+                args.push(format!("-i{pr}"));
+            }
+            (None, None) => {}
         }
 
         if let Some(ref pid) = params.pid {
             args.push("-p".to_string());
             args.push(pid.clone());
-        }
-
-        if let Some(ref proto) = params.protocol {
-            args.push(format!("-i{}", proto));
         }
 
         if params.network_only.unwrap_or(false) && params.port.is_none() && params.protocol.is_none() {

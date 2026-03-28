@@ -103,21 +103,31 @@ pub async fn do_diff(params: Value) -> DispatchResult {
 pub async fn do_lsof(params: Value) -> DispatchResult {
     let mut args: Vec<String> = vec!["-n".to_string(), "-P".to_string()];
 
-    if let Some(port) = params.get("port").and_then(|v| v.as_str()) {
-        if port.starts_with(':') {
-            args.push(format!("-i{port}"));
-        } else {
-            args.push(format!("-i:{port}"));
+    let port = params.get("port").and_then(|v| v.as_str());
+    let proto = params.get("protocol").and_then(|v| v.as_str());
+
+    // Combine protocol and port into a single -i flag when both present
+    match (proto, port) {
+        (Some(pr), Some(pt)) => {
+            let pt = pt.strip_prefix(':').unwrap_or(pt);
+            args.push(format!("-i{pr}:{pt}"));
         }
+        (None, Some(pt)) => {
+            if pt.starts_with(':') {
+                args.push(format!("-i{pt}"));
+            } else {
+                args.push(format!("-i:{pt}"));
+            }
+        }
+        (Some(pr), None) => {
+            args.push(format!("-i{pr}"));
+        }
+        (None, None) => {}
     }
 
     if let Some(pid) = params.get("pid").and_then(|v| v.as_str()) {
         args.push("-p".to_string());
         args.push(pid.to_string());
-    }
-
-    if let Some(proto) = params.get("protocol").and_then(|v| v.as_str()) {
-        args.push(format!("-i{proto}"));
     }
 
     if params.get("network_only").and_then(|v| v.as_bool()).unwrap_or(false)
