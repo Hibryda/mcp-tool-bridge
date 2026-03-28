@@ -8,11 +8,34 @@ use rmcp::{
 use serde::Deserialize;
 
 mod diff;
+mod docker;
+mod kubectl;
 mod ls;
 mod lsof;
+mod sqlite;
 mod wc;
 
 // ── Tool parameter types ──────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct KubectlListParams {
+    /// Kubernetes resource type. Examples: "pods", "deployments", "services", "configmaps", "nodes".
+    resource_type: String,
+    /// Namespace to query. Defaults to "default".
+    namespace: Option<String>,
+    /// Label selector. Example: "app=nginx".
+    label_selector: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct KubectlGetParams {
+    /// Kubernetes resource type. Examples: "pod", "deployment", "service".
+    resource_type: String,
+    /// Resource name.
+    name: String,
+    /// Namespace. Defaults to "default".
+    namespace: Option<String>,
+}
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct LsParams {
@@ -53,6 +76,33 @@ struct LsofParams {
     network_only: Option<bool>,
     /// Extra arguments to pass to lsof.
     extra_args: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct DockerListParams {
+    /// Include stopped containers.
+    #[schemars(default)]
+    all: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct DockerInspectParams {
+    /// Container ID or name.
+    container: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct SqliteQueryParams {
+    /// Path to the SQLite database file.
+    db_path: String,
+    /// SQL query to execute (read-only).
+    sql: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct SqliteTablesParams {
+    /// Path to the SQLite database file.
+    db_path: String,
 }
 
 // ── MCP Server ────────────────────────────────────────────────────────
@@ -189,6 +239,135 @@ impl ToolBridge {
             Err(e) => Ok(CallToolResult::error(vec![Content::text(
                 format!("lsof failed: {e}"),
             )])),
+        }
+    }
+
+    #[tool(description = "List Kubernetes resources as structured JSON with typed metadata (name, namespace, uid, labels, annotations, timestamps). Spec and status are passthrough JSON. Works with any resource type.")]
+    async fn kubectl_list(
+        &self,
+        Parameters(params): Parameters<KubectlListParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let ns = params.namespace.as_deref().unwrap_or("default");
+        let mut extra: Vec<String> = Vec::new();
+        if let Some(ref sel) = params.label_selector {
+            extra.push("-l".to_string());
+            extra.push(sel.clone());
+        }
+        let extra_refs: Vec<&str> = extra.iter().map(|s| s.as_str()).collect();
+
+        match kubectl::kubectl_get(&params.resource_type, None, ns, &extra_refs).await {
+            Ok(output) => match kubectl::parse_list_response(&output, &params.resource_type, ns) {
+                Ok(result) => {
+                    let json = serde_json::to_string_pretty(&result)
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    Ok(CallToolResult::success(vec![Content::text(json)]))
+                }
+                Err(e) => Ok(CallToolResult::error(vec![Content::text(e.to_string())])),
+            },
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!("kubectl failed: {e}"))])),
+        }
+    }
+
+    #[tool(description = "Get a single Kubernetes resource as structured JSON with typed metadata. Spec and status are passthrough JSON.")]
+    async fn kubectl_get(
+        &self,
+        Parameters(params): Parameters<KubectlGetParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let ns = params.namespace.as_deref().unwrap_or("default");
+
+        match kubectl::kubectl_get(&params.resource_type, Some(&params.name), ns, &[]).await {
+            Ok(output) => match kubectl::parse_get_response(&output) {
+                Ok(result) => {
+                    let json = serde_json::to_string_pretty(&result)
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    Ok(CallToolResult::success(vec![Content::text(json)]))
+                }
+                Err(e) => Ok(CallToolResult::error(vec![Content::text(e.to_string())])),
+            },
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!("kubectl failed: {e}"))])),
+        }
+    }
+
+    #[tool(description = "List Docker containers as structured JSON with id, name, image, state, status, ports, and labels. Connects to local Docker daemon.")]
+    async fn docker_list(
+        &self,
+        Parameters(params): Parameters<DockerListParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let client = docker::connect()
+            .map_err(|e| McpError::internal_error(e, None))?;
+
+        match docker::list_containers(&client, params.all.unwrap_or(false)).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "Inspect a Docker container. Returns structured state (running, pid, exit code), network settings, mounts, and config.")]
+    async fn docker_inspect(
+        &self,
+        Parameters(params): Parameters<DockerInspectParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let client = docker::connect()
+            .map_err(|e| McpError::internal_error(e, None))?;
+
+        match docker::inspect_container(&client, &params.container).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "List Docker images as structured JSON with id, tags, size, and created timestamp.")]
+    async fn docker_images(
+        &self,
+    ) -> Result<CallToolResult, McpError> {
+        let client = docker::connect()
+            .map_err(|e| McpError::internal_error(e, None))?;
+
+        match docker::list_images(&client).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "Execute a read-only SQL query against a SQLite database. Returns structured columns and typed rows (integers, floats, strings, nulls).")]
+    async fn sqlite_query(
+        &self,
+        Parameters(params): Parameters<SqliteQueryParams>,
+    ) -> Result<CallToolResult, McpError> {
+        match sqlite::query(&params.db_path, &params.sql) {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "List tables and their schemas in a SQLite database. Returns table names with column info (name, type, not_null, primary_key).")]
+    async fn sqlite_tables(
+        &self,
+        Parameters(params): Parameters<SqliteTablesParams>,
+    ) -> Result<CallToolResult, McpError> {
+        match sqlite::list_tables(&params.db_path) {
+            Ok(tables) => {
+                let json = serde_json::to_string_pretty(&tables)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
         }
     }
 
