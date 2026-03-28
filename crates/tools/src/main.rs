@@ -9,6 +9,7 @@ use serde::Deserialize;
 
 mod diff;
 mod ls;
+mod lsof;
 mod wc;
 
 // ── Tool parameter types ──────────────────────────────────────────────
@@ -37,6 +38,21 @@ struct DiffParams {
     input: Option<String>,
     /// Arguments to pass to `git diff --no-ext-diff`. Example: ["HEAD~1"], ["--cached"], ["main..feature"].
     git_args: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct LsofParams {
+    /// Filter by port number. Example: "8080" or ":8080".
+    port: Option<String>,
+    /// Filter by PID.
+    pid: Option<String>,
+    /// Filter by protocol: "TCP", "UDP".
+    protocol: Option<String>,
+    /// Show only network sockets (equivalent to -i).
+    #[schemars(default)]
+    network_only: Option<bool>,
+    /// Extra arguments to pass to lsof.
+    extra_args: Option<Vec<String>>,
 }
 
 // ── MCP Server ────────────────────────────────────────────────────────
@@ -126,6 +142,53 @@ impl ToolBridge {
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?;
                 Ok(CallToolResult::error(vec![Content::text(json)]))
             }
+        }
+    }
+
+    #[tool(description = "List open files and network sockets as structured JSON. Filter by port, PID, or protocol. Returns processes with typed file descriptors including fd, type, protocol, and name.")]
+    async fn lsof(
+        &self,
+        Parameters(params): Parameters<LsofParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let mut args: Vec<String> = vec!["-n".to_string(), "-P".to_string()];
+
+        if let Some(ref port) = params.port {
+            let port_filter = if port.starts_with(':') {
+                format!("-i{}", port)
+            } else {
+                format!("-i:{}", port)
+            };
+            args.push(port_filter);
+        }
+
+        if let Some(ref pid) = params.pid {
+            args.push("-p".to_string());
+            args.push(pid.clone());
+        }
+
+        if let Some(ref proto) = params.protocol {
+            args.push(format!("-i{}", proto));
+        }
+
+        if params.network_only.unwrap_or(false) && params.port.is_none() && params.protocol.is_none() {
+            args.push("-i".to_string());
+        }
+
+        if let Some(ref extra) = params.extra_args {
+            args.extend(extra.iter().cloned());
+        }
+
+        let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        match lsof::run_lsof(&arg_refs).await {
+            Ok(output) => {
+                let result = lsof::parse_lsof_output(&output);
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(
+                format!("lsof failed: {e}"),
+            )])),
         }
     }
 
