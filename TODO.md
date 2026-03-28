@@ -8,20 +8,11 @@
 - [ ] Run 8-task MCP-context validation subset if any tool passes threshold
 - [ ] Decision point: proceed or suspend per pre-registered criterion
 
-## Phase 1.5: Category Audit (Days 11-12)
+## Phase 2: Implementation
 
-- [ ] Audit existing kubectl MCP server — test 2 ops per category (list/query, describe/inspect, log/stream, exec/apply)
-- [ ] Audit existing Docker MCP server — same category matrix
-- [ ] Audit existing sqlite3 MCP server — same category matrix
-- [ ] Document which categories return raw text vs structured JSON
-
-## Phase 2: Implementation (Days 13-25, conditional)
-
-- [ ] Implement `diff` wrapper — format detection pre-pass, unified diff only, graceful routing (if benchmark passes)
-- [ ] Implement `lsof` wrapper — version-keyed static field lookup, macOS 4.89 vs Linux 4.95+ (if benchmark passes)
-- [ ] Implement `kubectl` wrapper — all-resource passthrough via -o json, typed metadata only (if audit confirms gap)
-- [ ] Implement Docker wrapper — bollard-backed native API, sync-only (if audit confirms gap)
-- [ ] Implement `sqlite3` wrapper — rusqlite, CLI-flag-only whitelist, read-only default (if audit confirms gap)
+- [ ] Implement `kubectl` wrapper — all-resource passthrough via -o json, typed metadata only
+- [ ] Implement Docker wrapper — bollard-backed native API, sync-only
+- [ ] Implement `sqlite3` wrapper — rusqlite, CLI-flag-only whitelist, read-only default
 - [ ] Implement --tools opt-in flag for selective tool registration
 - [ ] CI: GitHub Actions with ubuntu-latest + macos-latest runners
 - [ ] README primary artifact: before/after parse error demonstration
@@ -36,4 +27,8 @@
 - [x] Implement bridge-core: shared types (BridgeError, FileEntry, WcResult), run_command utility | Done: 2026-03-28
 - [x] Implement `ls` wrapper — structured dir metadata via tokio::fs, 4 unit tests | Done: 2026-03-28
 - [x] Implement `wc` wrapper — typed counts from file or inline text, 5 unit tests | Done: 2026-03-28
-- [x] MCP server main.rs with rmcp tool_router, stdio transport, working tools/list + tools/call | Done: 2026-03-28
+- [x] Implement `diff` wrapper — unified diff parser, format detection, line tracking, 8 tests | Done: 2026-03-28
+- [x] Implement `lsof` wrapper — -F field parser, network filtering, version detection, 7 tests | Done: 2026-03-28
+- [x] MCP server main.rs with rmcp tool_router, stdio transport, 4 tools registered | Done: 2026-03-28
+- [x] Register mcp-tool-bridge in global Claude Code MCP settings | Done: 2026-03-28
+- [x] Category audit: kubectl (0/7 structured), docker (0/2 structured) — all raw text | Done: 2026-03-28
