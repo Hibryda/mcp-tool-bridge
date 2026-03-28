@@ -1,0 +1,85 @@
+# === OS ===
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+*~
+*.swp
+*.swo
+*.swn
+.nfs*
+
+# === Editors / IDEs ===
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+.history/
+.ionide/
+
+# === Environment / Secrets ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.p12
+*.jks
+*.keystore
+credentials.json
+service-account*.json
+secrets/
+.secrets/
+
+# === Claude Code ===
+.claude/settings.local.json
+
+# === Logs ===
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# === Archives / Binaries ===
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.dmg
+*.iso
+*.exe
+*.dll
+*.so
+*.dylib
+
+# === Rust ===
+target/
+**/*.rs.bk
+Cargo.lock
+*.pdb
+
+# === Docker / Infra ===
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.vagrant/
+*.box
