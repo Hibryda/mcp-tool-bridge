@@ -1,6 +1,6 @@
 # MCP Tool Bridge
 
-13-tool Rust MCP server: ls, wc, diff, lsof, kubectl (list/get), docker (list/inspect/images), sqlite (query/tables), batch, pipe. 45 tests. `--tools` flag for selective registration. See `docs/README.md` and `.tribunal/tribunal-report.md`.
+15-tool Rust MCP server: ls, wc, diff, lsof, find, kubectl (list/get), docker (list/inspect/images), sqlite (query/tables), batch, pipe, curl. 74 unit tests + 740 integration tests. `--tools` flag. See `docs/README.md`.
 
 ## Operational Rules
 

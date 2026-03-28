@@ -84,10 +84,11 @@ nginx      1234   8u   IPv4  127.0.0.1:8080->10.0.0.5:43210
 
 | Tool | Description |
 |------|-------------|
-| `diff` | Parse unified diff into typed hunks with line numbers |
 | `ls` | Directory listing with file metadata (size, type, perms, mtime) |
-| `wc` | Word/line/byte/char counts from file or text |
+| `wc` | Word/line/byte/char counts from file, text, or multiple paths |
+| `diff` | Parse unified diff into typed hunks with line numbers |
 | `lsof` | Open files and network sockets with typed FDs |
+| `find` | Recursive file search with globs, type/size/depth filters |
 | `kubectl_list` | List K8s resources with typed metadata |
 | `kubectl_get` | Get single K8s resource with typed metadata |
 | `docker_list` | List containers via Docker Engine API |
@@ -95,6 +96,9 @@ nginx      1234   8u   IPv4  127.0.0.1:8080->10.0.0.5:43210
 | `docker_images` | List images with tags and sizes |
 | `sqlite_query` | Read-only SQL queries with typed rows |
 | `sqlite_tables` | Database schema introspection |
+| `batch` | Run multiple tools in parallel, one MCP call |
+| `pipe` | Run listing tool + filter on structured fields |
+| `curl` | HTTP request with structured status, headers, timing, body |
 
 ## Installation
 
@@ -138,13 +142,19 @@ mcp-tool-bridge/
 │   └── tools/           # MCP server + all tool implementations
 │       └── src/
 │           ├── main.rs  # MCP server, tool_router, --tools flag
-│           ├── diff.rs  # Unified diff parser
-│           ├── ls.rs    # Directory listing via tokio::fs
-│           ├── wc.rs    # Word counting
-│           ├── lsof.rs  # lsof -F parser
-│           ├── kubectl.rs  # kubectl -o json wrapper
-│           ├── docker.rs   # bollard Docker Engine API
-│           └── sqlite.rs   # rusqlite read-only queries
+│           ├── dispatch.rs # Free functions for batch/pipe dispatch
+│           ├── batch.rs   # Parallel multi-tool executor
+│           ├── pipe.rs    # Structured filter on listing output
+│           ├── ls.rs      # Directory listing via tokio::fs
+│           ├── wc.rs      # Word counting (file/text/multi-path)
+│           ├── diff.rs    # Unified diff parser
+│           ├── find.rs    # Recursive file search with filters
+│           ├── lsof.rs    # lsof -F parser
+│           ├── curl.rs    # HTTP with structured response
+│           ├── kubectl.rs # kubectl -o json wrapper
+│           ├── docker.rs  # bollard Docker Engine API
+│           └── sqlite.rs  # rusqlite read-only queries
+├── tests/               # 740-test integration suite
 └── docs/                # Design docs, category audit, analysis
 ```
 
