@@ -3,7 +3,7 @@
 
 use serde_json::Value;
 
-use crate::{diff, docker, kubectl, ls, lsof, sqlite, wc};
+use crate::{curl, diff, docker, kubectl, ls, lsof, sqlite, wc};
 
 /// Dispatch result: either a JSON value or an error string.
 pub type DispatchResult = Result<Value, String>;
@@ -233,6 +233,33 @@ pub async fn do_sqlite_tables(params: Value) -> DispatchResult {
     serde_json::to_value(&tables).map_err(|e| e.to_string())
 }
 
+// ── curl ──────────────────────────────────────────────────────────────
+
+pub async fn do_curl(params: Value) -> DispatchResult {
+    let url = params.get("url")
+        .and_then(|v| v.as_str())
+        .ok_or("missing required field 'url'")?;
+    let method = params.get("method").and_then(|v| v.as_str()).unwrap_or("GET");
+    let follow = params.get("follow_redirects").and_then(|v| v.as_bool()).unwrap_or(true);
+    let timeout = params.get("timeout_secs").and_then(|v| v.as_u64()).unwrap_or(30);
+
+    let headers: Vec<(String, String)> = params.get("headers")
+        .and_then(|v| v.as_object())
+        .map(|obj| {
+            obj.iter()
+                .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let body = params.get("body").and_then(|v| v.as_str());
+
+    let result = curl::http_request(url, method, &headers, body, follow, timeout)
+        .await
+        .map_err(|e| e.to_string())?;
+    serde_json::to_value(&result).map_err(|e| e.to_string())
+}
+
 // ── Dispatch table ────────────────────────────────────────────────────
 
 use std::collections::HashMap;
@@ -258,6 +285,7 @@ pub fn build_dispatch_table(enabled: &Option<std::collections::HashSet<String>>)
         };
     }
 
+    register!("curl", do_curl);
     register!("ls", do_ls);
     register!("wc", do_wc);
     register!("diff", do_diff);

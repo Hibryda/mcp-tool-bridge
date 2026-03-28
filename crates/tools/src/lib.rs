@@ -1,4 +1,7 @@
 pub mod batch;
+#[cfg(test)]
+mod benchmark;
+pub mod curl;
 pub mod diff;
 pub mod dispatch;
 pub mod docker;

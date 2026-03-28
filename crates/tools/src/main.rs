@@ -13,6 +13,7 @@ use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
 mod batch;
+mod curl;
 mod diff;
 mod dispatch;
 mod docker;
@@ -113,6 +114,22 @@ struct SqliteQueryParams {
 struct SqliteTablesParams {
     /// Path to the SQLite database file.
     db_path: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct CurlParams {
+    /// URL to request.
+    url: String,
+    /// HTTP method. Defaults to GET.
+    method: Option<String>,
+    /// Request headers as key-value pairs.
+    headers: Option<HashMap<String, String>>,
+    /// Request body (for POST, PUT, PATCH).
+    body: Option<String>,
+    /// Follow redirects. Defaults to true.
+    follow_redirects: Option<bool>,
+    /// Timeout in seconds. Defaults to 30.
+    timeout_secs: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -309,6 +326,29 @@ impl ToolBridge {
             Err(e) => Ok(CallToolResult::error(vec![Content::text(
                 format!("lsof failed: {e}"),
             )])),
+        }
+    }
+
+    #[tool(description = "HTTP request with structured response: status code, headers, body, timing breakdown (DNS, connect, TLS, first byte, total), redirect count, content type detection, and JSON body detection.")]
+    async fn curl(
+        &self,
+        Parameters(params): Parameters<CurlParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let value = serde_json::json!({
+            "url": params.url,
+            "method": params.method.as_deref().unwrap_or("GET"),
+            "headers": params.headers.unwrap_or_default(),
+            "body": params.body,
+            "follow_redirects": params.follow_redirects.unwrap_or(true),
+            "timeout_secs": params.timeout_secs.unwrap_or(30),
+        });
+        match dispatch::do_curl(value).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
         }
     }
 
@@ -563,7 +603,7 @@ impl ServerHandler for ToolBridge {
 // ── CLI argument parsing ──────────────────────────────────────────────
 
 const ALL_TOOLS: &[&str] = &[
-    "batch", "diff", "docker_images", "docker_inspect", "docker_list",
+    "batch", "curl", "diff", "docker_images", "docker_inspect", "docker_list",
     "kubectl_get", "kubectl_list", "ls", "lsof", "pipe",
     "sqlite_query", "sqlite_tables", "wc",
 ];
