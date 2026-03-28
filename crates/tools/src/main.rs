@@ -1,11 +1,16 @@
 use rmcp::{
     ErrorData as McpError, ServerHandler, ServiceExt,
-    handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    model::{CallToolResult, Content, ServerCapabilities, ServerInfo},
-    schemars, tool, tool_handler, tool_router,
+    handler::server::{router::tool::ToolRouter, tool::ToolCallContext, wrapper::Parameters},
+    model::{
+        CallToolRequestParams, CallToolResult, Content, ListToolsResult,
+        PaginatedRequestParams, ServerCapabilities, ServerInfo,
+    },
+    schemars, tool, tool_router,
+    service::{RequestContext, RoleServer},
     transport::stdio,
 };
 use serde::Deserialize;
+use std::collections::HashSet;
 
 mod diff;
 mod docker;
@@ -110,14 +115,20 @@ struct SqliteTablesParams {
 #[derive(Debug, Clone)]
 struct ToolBridge {
     tool_router: ToolRouter<Self>,
+    enabled_tools: Option<HashSet<String>>,
 }
 
 #[tool_router]
 impl ToolBridge {
-    fn new() -> Self {
+    fn new(enabled: Option<HashSet<String>>) -> Self {
         Self {
             tool_router: Self::tool_router(),
+            enabled_tools: enabled,
         }
+    }
+
+    fn is_enabled(&self, name: &str) -> bool {
+        self.enabled_tools.as_ref().is_none_or(|set| set.contains(name))
     }
 
     #[tool(description = "List directory contents as structured JSON. Returns entries with name, path, type, size, permissions, and modified time.")]
@@ -401,12 +412,88 @@ impl ToolBridge {
 
 // ── Handler ───────────────────────────────────────────────────────────
 
-#[tool_handler]
+#[allow(clippy::manual_async_fn)]
 impl ServerHandler for ToolBridge {
     fn get_info(&self) -> ServerInfo {
         // NOTE: omit .with_instructions() — Claude Code bug #25081 silently drops tools
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
     }
+
+    fn list_tools(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> impl std::future::Future<Output = Result<ListToolsResult, McpError>> + Send + '_ {
+        async move {
+            let mut tools = self.tool_router.list_all();
+            if let Some(ref enabled) = self.enabled_tools {
+                tools.retain(|t| enabled.contains(t.name.as_ref()));
+            }
+            Ok(ListToolsResult { meta: None, next_cursor: None, tools })
+        }
+    }
+
+    fn call_tool(
+        &self,
+        request: CallToolRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> impl std::future::Future<Output = Result<CallToolResult, McpError>> + Send + '_ {
+        async move {
+            if !self.is_enabled(&request.name) {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Tool '{}' is not enabled. Restart server with --tools to change.",
+                    request.name,
+                ))]));
+            }
+            let tcc = ToolCallContext::new(self, request, context);
+            self.tool_router.call(tcc).await
+        }
+    }
+
+    fn get_tool(&self, name: &str) -> Option<rmcp::model::Tool> {
+        if !self.is_enabled(name) {
+            return None;
+        }
+        self.tool_router.get(name).cloned()
+    }
+}
+
+// ── CLI argument parsing ──────────────────────────────────────────────
+
+const ALL_TOOLS: &[&str] = &[
+    "diff", "docker_images", "docker_inspect", "docker_list",
+    "kubectl_get", "kubectl_list", "ls", "lsof",
+    "sqlite_query", "sqlite_tables", "wc",
+];
+
+fn parse_tools_flag() -> Option<HashSet<String>> {
+    let args: Vec<String> = std::env::args().collect();
+    for (i, arg) in args.iter().enumerate() {
+        if arg == "--tools" {
+            if let Some(value) = args.get(i + 1) {
+                let tools: HashSet<String> = value.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                return Some(tools);
+            }
+        }
+        if let Some(value) = arg.strip_prefix("--tools=") {
+            let tools: HashSet<String> = value.split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            return Some(tools);
+        }
+        if arg == "--list-tools" {
+            eprintln!("Available tools:");
+            for tool in ALL_TOOLS {
+                eprintln!("  {tool}");
+            }
+            std::process::exit(0);
+        }
+    }
+    None // None = all tools enabled
 }
 
 // ── Entry point ───────────────────────────────────────────────────────
@@ -423,9 +510,18 @@ async fn main() -> anyhow::Result<()> {
         .with_ansi(false)
         .init();
 
-    tracing::info!("mcp-tool-bridge v{} starting", env!("CARGO_PKG_VERSION"));
+    let enabled = parse_tools_flag();
+    if let Some(ref tools) = enabled {
+        tracing::info!(
+            "mcp-tool-bridge v{} starting with tools: {}",
+            env!("CARGO_PKG_VERSION"),
+            tools.iter().cloned().collect::<Vec<_>>().join(", ")
+        );
+    } else {
+        tracing::info!("mcp-tool-bridge v{} starting (all tools)", env!("CARGO_PKG_VERSION"));
+    }
 
-    let service = ToolBridge::new()
+    let service = ToolBridge::new(enabled)
         .serve(stdio())
         .await
         .inspect_err(|e| tracing::error!("serving error: {:?}", e))?;
