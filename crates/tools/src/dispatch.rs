@@ -3,7 +3,7 @@
 
 use serde_json::Value;
 
-use crate::{curl, diff, docker, find, kubectl, ls, lsof, sqlite, wc};
+use crate::{curl, diff, docker, find, gh_api, git_log, git_show, git_status, kubectl, ls, lsof, ps, sqlite, wc};
 
 /// Dispatch result: either a JSON value or an error string.
 pub type DispatchResult = Result<Value, String>;
@@ -243,6 +243,78 @@ pub async fn do_sqlite_tables(params: Value) -> DispatchResult {
     serde_json::to_value(&tables).map_err(|e| e.to_string())
 }
 
+// ── git_status ────────────────────────────────────────────────────────
+
+pub async fn do_git_status(params: Value) -> DispatchResult {
+    let path = params.get("path").and_then(|v| v.as_str()).unwrap_or(".");
+    let show_untracked = params.get("show_untracked").and_then(|v| v.as_bool()).unwrap_or(true);
+
+    match git_status::git_status(path, show_untracked).await {
+        Ok(result) => serde_json::to_value(&result).map_err(|e| e.to_string()),
+        Err(git_err) => Err(serde_json::to_string(&git_err).unwrap_or(git_err.message)),
+    }
+}
+
+// ── git_log ───────────────────────────────────────────────────────────
+
+pub async fn do_git_log(params: Value) -> DispatchResult {
+    let path = params.get("path").and_then(|v| v.as_str()).unwrap_or(".");
+    let max_count = params.get("max_count").and_then(|v| v.as_u64()).unwrap_or(50).min(200) as u32;
+    let include_stats = params.get("include_stats").and_then(|v| v.as_bool()).unwrap_or(false);
+    let after_hash = params.get("after_hash").and_then(|v| v.as_str());
+    let snapshot_oid = params.get("snapshot_oid").and_then(|v| v.as_str());
+    let branch = params.get("branch").and_then(|v| v.as_str());
+
+    match git_log::git_log(path, max_count, include_stats, after_hash, snapshot_oid, branch).await {
+        Ok(result) => serde_json::to_value(&result).map_err(|e| e.to_string()),
+        Err(git_err) => Err(serde_json::to_string(&git_err).unwrap_or(git_err.message)),
+    }
+}
+
+// ── git_show ──────────────────────────────────────────────────────────
+
+pub async fn do_git_show(params: Value) -> DispatchResult {
+    let path = params.get("path").and_then(|v| v.as_str()).unwrap_or(".");
+    let reference = params.get("ref").and_then(|v| v.as_str())
+        .ok_or("missing required field 'ref'")?;
+    let include_stats = params.get("include_stats").and_then(|v| v.as_bool()).unwrap_or(false);
+
+    match git_show::git_show(path, reference, include_stats).await {
+        Ok(result) => serde_json::to_value(&result).map_err(|e| e.to_string()),
+        Err(git_err) => Err(serde_json::to_string(&git_err).unwrap_or(git_err.message)),
+    }
+}
+
+// ── ps ────────────────────────────────────────────────────────────────
+
+pub async fn do_ps(params: Value) -> DispatchResult {
+    let name_pattern = params.get("name_pattern").and_then(|v| v.as_str());
+    let user = params.get("user").and_then(|v| v.as_str());
+    let pid_list: Option<Vec<u64>> = params.get("pid_list")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_u64()).collect());
+    let max_results = params.get("max_results").and_then(|v| v.as_u64()).unwrap_or(100).min(500) as usize;
+
+    let result = ps::list_processes(
+        name_pattern, user, pid_list.as_deref(), max_results
+    ).await?;
+    serde_json::to_value(&result).map_err(|e| e.to_string())
+}
+
+// ── gh_api ────────────────────────────────────────────────────────────
+
+pub async fn do_gh_api(params: Value) -> DispatchResult {
+    let endpoint = params.get("endpoint").and_then(|v| v.as_str())
+        .ok_or("missing required field 'endpoint'")?;
+    let method = params.get("method").and_then(|v| v.as_str()).unwrap_or("GET");
+    let body = params.get("body").and_then(|v| v.as_str());
+    let paginate = params.get("paginate").and_then(|v| v.as_bool()).unwrap_or(false);
+    let max_items = params.get("max_items").and_then(|v| v.as_u64()).unwrap_or(200).min(1000) as usize;
+
+    let result = gh_api::gh_api(endpoint, method, body, paginate, max_items).await?;
+    serde_json::to_value(&result).map_err(|e| e.to_string())
+}
+
 // ── find ──────────────────────────────────────────────────────────────
 
 pub async fn do_find(params: Value) -> DispatchResult {
@@ -314,6 +386,11 @@ pub fn build_dispatch_table(enabled: &Option<std::collections::HashSet<String>>)
 
     register!("curl", do_curl);
     register!("find", do_find);
+    register!("gh_api", do_gh_api);
+    register!("git_log", do_git_log);
+    register!("git_show", do_git_show);
+    register!("git_status", do_git_status);
+    register!("ps", do_ps);
     register!("ls", do_ls);
     register!("wc", do_wc);
     register!("diff", do_diff);

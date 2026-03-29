@@ -17,6 +17,11 @@ mod curl;
 mod diff;
 mod dispatch;
 mod find;
+mod gh_api;
+mod git_log;
+mod git_show;
+mod git_status;
+mod ps;
 mod docker;
 mod kubectl;
 mod ls;
@@ -115,6 +120,67 @@ struct SqliteQueryParams {
 struct SqliteTablesParams {
     /// Path to the SQLite database file.
     db_path: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct GitStatusParams {
+    /// Path to the git repository. Defaults to current directory.
+    path: Option<String>,
+    /// Show untracked files. Defaults to true.
+    show_untracked: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct GitLogParams {
+    /// Path to the git repository. Defaults to current directory.
+    path: Option<String>,
+    /// Maximum number of commits (default 50, max 200).
+    max_count: Option<u32>,
+    /// Include file-level stats (additions/deletions per file).
+    include_stats: Option<bool>,
+    /// Hash to start after (for pagination). Use last_hash from previous result.
+    after_hash: Option<String>,
+    /// Snapshot OID for stable pagination. Use snapshot_oid from first page.
+    snapshot_oid: Option<String>,
+    /// Branch name to query. Defaults to HEAD.
+    branch: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct GitShowParams {
+    /// Path to the git repository. Defaults to current directory.
+    path: Option<String>,
+    /// Git reference (commit hash, tag, branch, HEAD, HEAD~1, etc.).
+    #[serde(rename = "ref")]
+    reference: String,
+    /// Include file-level stats.
+    include_stats: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct PsParams {
+    /// Filter by process name or command (substring match).
+    name_pattern: Option<String>,
+    /// Filter by user (exact match).
+    user: Option<String>,
+    /// Filter by PIDs.
+    pid_list: Option<Vec<u64>>,
+    /// Maximum results (default 100, max 500).
+    max_results: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct GhApiParams {
+    /// GitHub API endpoint path (must start with /). Example: /repos/owner/repo/pulls.
+    endpoint: String,
+    /// HTTP method (default GET). Use GET for read operations.
+    method: Option<String>,
+    /// Request body as JSON string (for POST/PATCH/PUT).
+    body: Option<String>,
+    /// Enable pagination (mutually exclusive with rate limit info).
+    paginate: Option<bool>,
+    /// Maximum items to return when paginating (default 200, max 1000).
+    max_items: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -352,6 +418,111 @@ impl ToolBridge {
             Err(e) => Ok(CallToolResult::error(vec![Content::text(
                 format!("lsof failed: {e}"),
             )])),
+        }
+    }
+
+    #[tool(description = "Structured git status: branch info (head, upstream, ahead/behind), file entries (modified/added/deleted/renamed/untracked), counts. Uses --porcelain=v2. Typed errors: NOT_A_REPO, DETACHED_HEAD, VERSION_TOO_OLD.")]
+    async fn git_status(
+        &self,
+        Parameters(params): Parameters<GitStatusParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let value = serde_json::json!({
+            "path": params.path.as_deref().unwrap_or("."),
+            "show_untracked": params.show_untracked.unwrap_or(true),
+        });
+        match dispatch::do_git_status(value).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "Structured git log: commits with hash, author, date, subject, parent hashes, refs, merge detection. Stable pagination via snapshot_oid. Optional file-level stats (--numstat).")]
+    async fn git_log(
+        &self,
+        Parameters(params): Parameters<GitLogParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let value = serde_json::json!({
+            "path": params.path.as_deref().unwrap_or("."),
+            "max_count": params.max_count.unwrap_or(50),
+            "include_stats": params.include_stats.unwrap_or(false),
+            "after_hash": params.after_hash,
+            "snapshot_oid": params.snapshot_oid,
+            "branch": params.branch,
+        });
+        match dispatch::do_git_log(value).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "Show a single git commit: hash, author, date, subject, body, parents, merge detection. Restricted to commit objects (blobs/trees return typed error). Optional file stats.")]
+    async fn git_show(
+        &self,
+        Parameters(params): Parameters<GitShowParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let value = serde_json::json!({
+            "path": params.path.as_deref().unwrap_or("."),
+            "ref": params.reference,
+            "include_stats": params.include_stats.unwrap_or(false),
+        });
+        match dispatch::do_git_show(value).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "Structured process listing: PID, PPID, user, command, args, CPU%, memory RSS, elapsed time. Filter by name pattern, user, or PID list. Cross-platform (Linux + macOS).")]
+    async fn ps(
+        &self,
+        Parameters(params): Parameters<PsParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let value = serde_json::json!({
+            "name_pattern": params.name_pattern,
+            "user": params.user,
+            "pid_list": params.pid_list,
+            "max_results": params.max_results.unwrap_or(100),
+        });
+        match dispatch::do_ps(value).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "GitHub API access via gh CLI. Returns structured JSON with status code, body, rate limit info, and pagination. Read-only by default. Auth tokens redacted from errors.")]
+    async fn gh_api(
+        &self,
+        Parameters(params): Parameters<GhApiParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let value = serde_json::json!({
+            "endpoint": params.endpoint,
+            "method": params.method.as_deref().unwrap_or("GET"),
+            "body": params.body,
+            "paginate": params.paginate.unwrap_or(false),
+            "max_items": params.max_items.unwrap_or(200),
+        });
+        match dispatch::do_gh_api(value).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
         }
     }
 
@@ -654,7 +825,8 @@ impl ServerHandler for ToolBridge {
 
 const ALL_TOOLS: &[&str] = &[
     "batch", "curl", "diff", "docker_images", "docker_inspect", "docker_list",
-    "find", "kubectl_get", "kubectl_list", "ls", "lsof", "pipe",
+    "find", "gh_api", "git_log", "git_show", "git_status",
+    "kubectl_get", "kubectl_list", "ls", "lsof", "pipe", "ps",
     "sqlite_query", "sqlite_tables", "wc",
 ];
 
