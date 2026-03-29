@@ -46,7 +46,6 @@ pub struct GitLogResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_hash: Option<String>,
     pub truncated: bool,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub parse_warnings: Vec<String>,
 }
 
