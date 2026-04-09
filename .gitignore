@@ -84,3 +84,12 @@ Cargo.lock
 .vagrant/
 *.box
 .tribunal/
+__pycache__/
+.venv/
+venv/
+*.pyc
+.claude/
+*.egg-info/
+.eggs/
+dist/
+build/
