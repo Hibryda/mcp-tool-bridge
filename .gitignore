@@ -88,7 +88,6 @@ __pycache__/
 .venv/
 venv/
 *.pyc
-.claude/
 *.egg-info/
 .eggs/
 dist/
