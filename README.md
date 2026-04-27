@@ -1,6 +1,6 @@
 # MCP Tool Bridge
 
-MCP server wrapping CLI tools with structured JSON output. 11 tools, single Rust binary, stdio transport.
+MCP server wrapping CLI tools with structured JSON output. 20 tools, single Rust binary (~10MB), stdio transport. 103 unit tests + 1740 integration tests.
 
 ## Before / After
 
@@ -87,8 +87,13 @@ nginx      1234   8u   IPv4  127.0.0.1:8080->10.0.0.5:43210
 | `ls` | Directory listing with file metadata (size, type, perms, mtime) |
 | `wc` | Word/line/byte/char counts from file, text, or multiple paths |
 | `diff` | Parse unified diff into typed hunks with line numbers |
-| `lsof` | Open files and network sockets with typed FDs |
 | `find` | Recursive file search with globs, type/size/depth filters |
+| `lsof` | Open files and network sockets with typed FDs |
+| `ps` | Process listing with PID, user, CPU%, memory, args (Linux+macOS) |
+| `git_status` | Branch info + file entries via `--porcelain=v2`, typed errors |
+| `git_log` | Structured commits with stable pagination, optional `--numstat` |
+| `git_show` | Single commit details, restricted to commit objects |
+| `gh_api` | GitHub API via gh CLI, path validation, auth redaction |
 | `kubectl_list` | List K8s resources with typed metadata |
 | `kubectl_get` | Get single K8s resource with typed metadata |
 | `docker_list` | List containers via Docker Engine API |
@@ -96,9 +101,9 @@ nginx      1234   8u   IPv4  127.0.0.1:8080->10.0.0.5:43210
 | `docker_images` | List images with tags and sizes |
 | `sqlite_query` | Read-only SQL queries with typed rows |
 | `sqlite_tables` | Database schema introspection |
+| `curl` | HTTP request with structured status, headers, timing, body |
 | `batch` | Run multiple tools in parallel, one MCP call |
 | `pipe` | Run listing tool + filter on structured fields |
-| `curl` | HTTP request with structured status, headers, timing, body |
 
 ## Installation
 
@@ -145,16 +150,21 @@ mcp-tool-bridge/
 │           ├── dispatch.rs # Free functions for batch/pipe dispatch
 │           ├── batch.rs   # Parallel multi-tool executor
 │           ├── pipe.rs    # Structured filter on listing output
-│           ├── ls.rs      # Directory listing via tokio::fs
-│           ├── wc.rs      # Word counting (file/text/multi-path)
-│           ├── diff.rs    # Unified diff parser
-│           ├── find.rs    # Recursive file search with filters
-│           ├── lsof.rs    # lsof -F parser
-│           ├── curl.rs    # HTTP with structured response
-│           ├── kubectl.rs # kubectl -o json wrapper
-│           ├── docker.rs  # bollard Docker Engine API
-│           └── sqlite.rs  # rusqlite read-only queries
-├── tests/               # 740-test integration suite
+│           ├── ls.rs        # Directory listing via tokio::fs
+│           ├── wc.rs        # Word counting (file/text/multi-path)
+│           ├── diff.rs      # Unified diff parser
+│           ├── find.rs      # Recursive file search with filters
+│           ├── lsof.rs      # lsof -F parser
+│           ├── ps.rs        # Cross-platform process listing
+│           ├── git_status.rs # --porcelain=v2 with typed errors
+│           ├── git_log.rs   # STX/ETX sentinels, snapshot_oid pagination
+│           ├── git_show.rs  # cat-file preflight, commit-only
+│           ├── gh_api.rs    # GitHub API via gh CLI, auth redaction
+│           ├── curl.rs      # HTTP with structured response
+│           ├── kubectl.rs   # kubectl -o json wrapper
+│           ├── docker.rs    # bollard Docker Engine API
+│           └── sqlite.rs    # rusqlite read-only queries
+├── tests/               # 1740-test integration suite
 └── docs/                # Design docs, category audit, analysis
 ```
 

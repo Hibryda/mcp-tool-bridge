@@ -1,10 +1,10 @@
 # MCP Tool Bridge
 
-15-tool Rust MCP server: ls, wc, diff, lsof, find, kubectl (list/get), docker (list/inspect/images), sqlite (query/tables), batch, pipe, curl. See `docs/README.md` and `.tribunal/tribunal-report.md`.
+20-tool Rust MCP server: ls, wc, diff, lsof, find, curl, git (status/log/show), gh_api, ps, kubectl (list/get), docker (list/inspect/images), sqlite (query/tables), batch, pipe. See `docs/README.md` and `.tribunal/tribunal-report.md`.
 
 ## Status
 
-v0.1 complete — 15 tools, 74 unit tests, 740 integration tests. Registered globally in Claude Code. Remaining: CI, push to GitHub.
+v0.1 complete — 20 tools, 103 unit tests, 1740 integration tests. Registered globally in Claude Code. Remaining: CI, push to GitHub.
 
 ## Tech Stack
 
@@ -27,7 +27,7 @@ Single binary with dispatch layer: free functions in `dispatch.rs` shared by rmc
 ```bash
 cargo build                          # dev build
 cargo build --release                # release (~10MB binary)
-cargo test                           # 74 unit tests
+cargo test                           # 103 unit tests
 cargo run -p mcp-tool-bridge         # run with all tools
 cargo run -p mcp-tool-bridge -- --tools ls,wc,diff  # selective
 ```
