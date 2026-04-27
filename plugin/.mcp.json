@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "tool-bridge": {
+      "type": "stdio",
+      "command": "${CLAUDE_PLUGIN_ROOT}/../target/release/mcp-tool-bridge",
+      "args": []
+    }
+  }
+}

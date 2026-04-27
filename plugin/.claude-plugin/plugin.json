@@ -1,0 +1,9 @@
+{
+  "name": "mcp-tool-bridge",
+  "description": "MCP server wrapping CLI tools (ls, wc, diff, find, lsof, ps, git status/log/show, gh_api, kubectl, docker, sqlite, curl) with structured JSON output, plus a PreToolUse hook that nudges agents toward the structured equivalents instead of plain Bash.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Hibryda"
+  },
+  "homepage": "https://github.com/Hibryda/mcp-tool-bridge"
+}
