@@ -35,3 +35,6 @@ See `DEFERRED.md` for the full list with deferral reasons.
 - [x] Tier 2: 10 snapshots + 10 property tests + 11 MCP protocol + 5 doc tests | Done: 2026-04-27
 - [x] Tier 3: 17 failure-mode tests (concurrency, limits, IO/permissions, unicode) | Done: 2026-04-27
 - [x] Tier 4: criterion benches + cargo-llvm-cov coverage + nightly mutants | Done: 2026-04-27
+- [x] PreToolUse hook (`crates/hook/`) — shell-words tokenizer + 7 command handlers, 25 unit + 11 e2e tests | Done: 2026-04-27
+- [x] Claude Code plugin packaging (`plugin/`) — manifest + .mcp.json + hooks.json | Done: 2026-04-27
+- [x] CI: hook tests + plugin manifest validation in test job | Done: 2026-04-27

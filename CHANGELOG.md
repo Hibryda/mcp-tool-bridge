@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **PreToolUse hook** (`mcp-tool-bridge-hook`) — parses Bash invocations of `ls`, `wc`, `find`, `diff -u`, `lsof`, `ps`, `git status|log|show`; nudges agents toward the structured MCP equivalent. Modes: `suggest` (default, JSON `additionalContext`), `enforce` (exit 2), `off`. Conservative parser refuses pipelines/redirections/unknown flags rather than risk wrong rewrites. 25 unit + 11 e2e tests, including a 300-command real-history suite (~8% suggestion rate, no false-positive blocks).
+- **Claude Code plugin** (`plugin/`) — bundles MCP server + hook via `.claude-plugin/plugin.json`, `.mcp.json`, `hooks/hooks.json`. Single-command install.
 - `git_status` tool — `--porcelain=v2 --branch` with typed error envelope (NOT_A_REPO, DETACHED_HEAD, VERSION_TOO_OLD), branch ahead/behind, staged/unstaged detection (6 unit tests)
 - `git_log` tool — STX/ETX sentinel format with NUL field separators, snapshot_oid stable pagination, optional `--numstat` stats, merge detection, ref decoration (8 unit tests)
 - `git_show` tool — `cat-file -t` preflight restricting to commit objects, typed NOT_A_COMMIT error for non-commits, optional stats (3 unit tests)

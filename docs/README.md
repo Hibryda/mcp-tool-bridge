@@ -45,6 +45,27 @@ MCP server binary (`crates/tools/src/main.rs`) using rmcp 1.3.0 `#[tool_router]`
 - `ls` tool — lists directory contents via `tokio::fs::read_dir`, returns `Vec<FileEntry>`
 - `wc` tool — counts lines/words/bytes/chars from file path or inline text input
 
+### hook (binary: `mcp-tool-bridge-hook`)
+
+PreToolUse hook for Claude Code (`crates/hook/src/main.rs`). Reads JSON on stdin, parses Bash commands via `shell-words`, suggests structured equivalents for 7 covered tools (ls, wc, find, diff -u, lsof, ps, git status|log|show). Conservative parser refuses pipelines, redirections, and unknown flags rather than risk wrong rewrites.
+
+Three modes via `MCP_BRIDGE_HOOK_MODE` env var:
+- `suggest` (default) — emits JSON `additionalContext` on stdout, exit 0. Never blocks.
+- `enforce` — emits message on stderr, exit 2. Claude Code blocks the call and feeds stderr back to the agent.
+- `off` — no-op.
+
+Empirically: 25/300 real Bash invocations from local transcript history (~8.3%) trigger a suggestion.
+
+### plugin/
+
+Claude Code plugin manifest bundling both binaries:
+- `plugin/.claude-plugin/plugin.json` — manifest
+- `plugin/.mcp.json` — MCP server config (registers `tool-bridge`)
+- `plugin/hooks/hooks.json` — PreToolUse hook on Bash matcher
+- Both binaries referenced via `${CLAUDE_PLUGIN_ROOT}/../target/release/`
+
+Install: `/plugin install file:///path/to/mcp-tool-bridge/plugin` (after `cargo build --release`).
+
 ## Rust MCP Ecosystem
 
 **Decision: rmcp 1.3.0** (official Anthropic SDK, 3.2K stars). Evaluated vs rust-mcp-sdk 0.9.0 (163 stars).

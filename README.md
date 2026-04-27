@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Hibryda/mcp-tool-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/Hibryda/mcp-tool-bridge/actions/workflows/ci.yml)
 
-MCP server wrapping CLI tools with structured JSON output. 20 tools, single Rust binary (~10MB), stdio transport. 103 unit + 5 doc + 187 e2e tests across ubuntu+macos.
+MCP server wrapping CLI tools with structured JSON output. 20 tools, single Rust binary (~10MB), stdio transport. Bundled as a Claude Code plugin with a PreToolUse hook that nudges agents toward the structured tools when they reach for plain Bash. 103 unit + 5 doc + 187 e2e + 36 hook tests across ubuntu+macos.
 
 ## Before / After
 
@@ -113,7 +113,20 @@ nginx      1234   8u   IPv4  127.0.0.1:8080->10.0.0.5:43210
 cargo build --release
 ```
 
-### Claude Code
+### Claude Code (as a plugin)
+
+The bundled plugin (`plugin/`) wires both the MCP server and the PreToolUse hook
+in one go. After `cargo build --release`, install it:
+
+```
+/plugin install file:///path/to/mcp-tool-bridge/plugin
+```
+
+The hook defaults to **suggest mode** (adds `additionalContext` to the agent,
+never blocks). Set `MCP_BRIDGE_HOOK_MODE=enforce` to block uncovered Bash, or
+`=off` to disable it.
+
+### Claude Code (MCP server only, no hook)
 
 Add to `~/.claude/.claude.json`:
 ```json
