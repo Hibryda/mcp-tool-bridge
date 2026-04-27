@@ -1,0 +1,9 @@
+---
+source: crates/tools/tests/e2e/snapshot_tests.rs
+expression: parsed
+---
+{
+  "directive": "Use the shell tool to invoke diff/git diff directly; this tool only processes standard unified text diffs.",
+  "error": "format_not_unified",
+  "format_detected": "binary"
+}

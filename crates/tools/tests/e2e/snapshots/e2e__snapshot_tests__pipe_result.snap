@@ -1,0 +1,19 @@
+---
+source: crates/tools/tests/e2e/snapshot_tests.rs
+expression: redacted
+---
+{
+  "items": [
+    {
+      "modified": "<modified>",
+      "name": "a.rs",
+      "path": "<path>",
+      "permissions": "<permissions>",
+      "size": "<size>",
+      "type": "file"
+    }
+  ],
+  "source_tool": "ls",
+  "total_after_filter": 1,
+  "total_before_filter": 2
+}

@@ -24,6 +24,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 [dev-dependencies]
 tempfile = "3"
 mockito = "1"
+insta = { version = "1", features = ["json"] }
+proptest = "1"
 
 [features]
 default = []

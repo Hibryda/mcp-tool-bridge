@@ -1,0 +1,37 @@
+---
+source: crates/tools/tests/e2e/snapshot_tests.rs
+expression: redacted
+---
+{
+  "results": [
+    {
+      "duration_ms": "<duration_ms>",
+      "params": {
+        "input": "x"
+      },
+      "result": {
+        "bytes": 1,
+        "chars": 1,
+        "lines": 1,
+        "words": 1
+      },
+      "success": true,
+      "tool": "wc"
+    },
+    {
+      "duration_ms": "<duration_ms>",
+      "params": {
+        "input": "y z"
+      },
+      "result": {
+        "bytes": 3,
+        "chars": 3,
+        "lines": 1,
+        "words": 2
+      },
+      "success": true,
+      "tool": "wc"
+    }
+  ],
+  "total_duration_ms": "<total_duration_ms>"
+}

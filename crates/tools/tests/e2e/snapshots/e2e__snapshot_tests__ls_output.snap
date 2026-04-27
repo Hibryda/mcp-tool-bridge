@@ -1,0 +1,30 @@
+---
+source: crates/tools/tests/e2e/snapshot_tests.rs
+expression: redacted
+---
+[
+  {
+    "modified": "<modified>",
+    "name": "a.txt",
+    "path": "<path>",
+    "permissions": "<permissions>",
+    "size": "<size>",
+    "type": "file"
+  },
+  {
+    "modified": "<modified>",
+    "name": "b.rs",
+    "path": "<path>",
+    "permissions": "<permissions>",
+    "size": "<size>",
+    "type": "file"
+  },
+  {
+    "modified": "<modified>",
+    "name": "subdir",
+    "path": "<path>",
+    "permissions": "<permissions>",
+    "size": "<size>",
+    "type": "directory"
+  }
+]

@@ -1,0 +1,21 @@
+---
+source: crates/tools/tests/e2e/snapshot_tests.rs
+expression: r.data
+---
+{
+  "columns": [
+    "id",
+    "name"
+  ],
+  "row_count": 2,
+  "rows": [
+    [
+      1,
+      "a"
+    ],
+    [
+      2,
+      "b"
+    ]
+  ]
+}

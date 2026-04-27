@@ -1,0 +1,23 @@
+---
+source: crates/tools/tests/e2e/snapshot_tests.rs
+expression: r.data
+---
+[
+  {
+    "columns": [
+      {
+        "data_type": "INTEGER",
+        "name": "id",
+        "not_null": false,
+        "primary_key": true
+      },
+      {
+        "data_type": "TEXT",
+        "name": "name",
+        "not_null": true,
+        "primary_key": false
+      }
+    ],
+    "name": "users"
+  }
+]

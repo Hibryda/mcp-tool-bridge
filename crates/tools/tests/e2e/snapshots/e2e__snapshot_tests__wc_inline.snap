@@ -1,0 +1,10 @@
+---
+source: crates/tools/tests/e2e/snapshot_tests.rs
+expression: r.data
+---
+{
+  "bytes": 19,
+  "chars": 19,
+  "lines": 2,
+  "words": 4
+}

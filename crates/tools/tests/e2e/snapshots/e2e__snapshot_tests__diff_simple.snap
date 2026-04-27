@@ -1,0 +1,49 @@
+---
+source: crates/tools/tests/e2e/snapshot_tests.rs
+expression: r.data
+---
+{
+  "files": [
+    {
+      "hunks": [
+        {
+          "lines": [
+            {
+              "content": "line",
+              "kind": "context",
+              "new_line": 1,
+              "old_line": 1
+            },
+            {
+              "content": "added",
+              "kind": "add",
+              "new_line": 2
+            },
+            {
+              "content": "line",
+              "kind": "context",
+              "new_line": 3,
+              "old_line": 2
+            },
+            {
+              "content": "line",
+              "kind": "context",
+              "new_line": 4,
+              "old_line": 3
+            }
+          ],
+          "new_count": 4,
+          "new_start": 1,
+          "old_count": 3,
+          "old_start": 1
+        }
+      ],
+      "is_binary": false,
+      "new_path": "b/f.rs",
+      "old_path": "a/f.rs"
+    }
+  ],
+  "format": "unified",
+  "total_additions": 1,
+  "total_deletions": 0
+}

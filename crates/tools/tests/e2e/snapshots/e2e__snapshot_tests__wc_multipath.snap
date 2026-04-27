@@ -1,0 +1,20 @@
+---
+source: crates/tools/tests/e2e/snapshot_tests.rs
+expression: redacted
+---
+[
+  {
+    "bytes": 2,
+    "chars": 2,
+    "file": "<file>",
+    "lines": 1,
+    "words": 1
+  },
+  {
+    "bytes": 4,
+    "chars": 4,
+    "file": "<file>",
+    "lines": 2,
+    "words": 2
+  }
+]

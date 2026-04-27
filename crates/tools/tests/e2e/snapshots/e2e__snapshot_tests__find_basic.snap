@@ -1,0 +1,29 @@
+---
+source: crates/tools/tests/e2e/snapshot_tests.rs
+expression: redacted
+---
+{
+  "count": 2,
+  "entries": [
+    {
+      "depth": 0,
+      "modified": "<modified>",
+      "name": "a.rs",
+      "path": "<path>",
+      "permissions": "<permissions>",
+      "size": "<size>",
+      "type": "file"
+    },
+    {
+      "depth": 0,
+      "modified": "<modified>",
+      "name": "b.md",
+      "path": "<path>",
+      "permissions": "<permissions>",
+      "size": "<size>",
+      "type": "file"
+    }
+  ],
+  "root": "<root>",
+  "truncated": false
+}
