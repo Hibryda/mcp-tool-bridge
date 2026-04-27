@@ -44,10 +44,16 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: cargo clippy
-        run: cargo clippy --all-targets --all-features
+        run: cargo clippy --all-targets
 
-      - name: cargo test
-        run: cargo test --all-features --no-fail-fast
+      - name: Build binary (required by e2e tests)
+        run: cargo build -p mcp-tool-bridge
+
+      - name: Unit tests
+        run: cargo test --lib --bins --no-fail-fast
+
+      - name: E2E tests (default features — no real infra)
+        run: cargo test --test e2e --no-fail-fast
 
   build-release:
     name: Release build

@@ -1,0 +1,54 @@
+name: Nightly (real infrastructure)
+
+on:
+  schedule:
+    # Every day at 04:00 UTC.
+    - cron: "0 4 * * *"
+  workflow_dispatch:  # Allow manual trigger.
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  real-infra:
+    name: Real-infra integration tests
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: docker:dind
+        options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-nightly-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ubuntu-nightly-cargo-
+
+      - name: Install lsof + gh
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lsof
+          # gh CLI from official apt source
+          (type -p curl >/dev/null || sudo apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Build binary
+        run: cargo build -p mcp-tool-bridge
+
+      - name: Run E2E with real-infra feature
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: cargo test --test e2e --features integration-real --no-fail-fast

@@ -23,3 +23,14 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
 tempfile = "3"
+mockito = "1"
+
+[features]
+default = []
+# Enables tests against real external services (Docker daemon, k8s cluster, GitHub API, public httpbin).
+# Run with: cargo test --features integration-real
+integration-real = []
+
+[[test]]
+name = "e2e"
+path = "tests/e2e/main.rs"
