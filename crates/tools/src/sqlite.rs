@@ -44,20 +44,29 @@ pub fn get_allowed_paths() -> &'static [String] {
 fn validate_path(db_path: &str) -> Result<String, String> {
     let allowed = get_allowed_paths();
 
-    // If no paths configured, allow any path under $HOME or /tmp (dev convenience).
+    // If no paths configured, allow any path under $HOME or the OS temp dir (dev convenience).
     // In production, --allow-db-path flags should be used.
     if allowed.is_empty() {
         let canonical = std::fs::canonicalize(db_path).map_err(|e| format!("path error: {e}"))?;
         let canonical_str = canonical.to_string_lossy().to_string();
         if let Ok(home) = std::env::var("HOME") {
-            if canonical_str.starts_with(&home) {
+            // Canonicalize $HOME too — handles symlinks like /home → /private/home on some systems.
+            let home_canonical = std::fs::canonicalize(&home)
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or(home);
+            if canonical_str.starts_with(&home_canonical) {
                 return Ok(canonical_str);
             }
         }
-        if canonical_str.starts_with("/tmp") {
-            return Ok(canonical_str);
+        // Allow OS temp dir — Linux: /tmp, macOS: /var/folders/.../T/, Windows: %TEMP%.
+        // Canonicalize it because /tmp is a symlink to /private/tmp on macOS.
+        if let Ok(tmp_canonical) = std::fs::canonicalize(std::env::temp_dir()) {
+            let tmp_str = tmp_canonical.to_string_lossy().to_string();
+            if canonical_str.starts_with(&tmp_str) {
+                return Ok(canonical_str);
+            }
         }
-        return Err("no databases configured and path is outside $HOME".to_string());
+        return Err("no databases configured and path is outside $HOME or temp dir".to_string());
     }
 
     let canonical = std::fs::canonicalize(db_path).map_err(|e| format!("path error: {e}"))?;
