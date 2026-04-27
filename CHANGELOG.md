@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - lsof protocol+port now combined into single `-i` flag (e.g., `-iTCP:8766`) — previously generated conflicting flags
 - git_log `parse_warnings` field always serialized — previously omitted when empty (caused inconsistent agent contracts)
+- sqlite path validator now allows files under canonicalized `std::env::temp_dir()` — fixes macOS test failures where tempfile creates under `/var/folders/.../T/`
 
 ### Changed
 - 20 tools total (up from 13)

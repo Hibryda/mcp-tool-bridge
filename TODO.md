@@ -27,6 +27,7 @@ See `DEFERRED.md` for the full list with deferral reasons.
 - [x] 1000 integration tests for 5 new tools (1740 total) | Done: 2026-03-29
 - [x] Fix lsof protocol+port flag combination | Done: 2026-03-28
 - [x] Fix git_log parse_warnings always-serialized | Done: 2026-03-29
-- [x] GitHub Actions CI | Done: 2026-04-27
+- [x] GitHub Actions CI (ubuntu+macos, all green) | Done: 2026-04-27
 - [x] DEFERRED.md governance doc | Done: 2026-04-27
-- [x] Push to GitHub | Done: 2026-04-27
+- [x] Push to GitHub (https://github.com/Hibryda/mcp-tool-bridge) | Done: 2026-04-27
+- [x] Fix sqlite path validation for macOS tempdir | Done: 2026-04-27
