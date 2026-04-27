@@ -21,10 +21,7 @@ pub enum BridgeError {
 
 /// Run a command with arguments, returning (stdout, stderr).
 /// Returns BridgeError::CommandFailed if exit code != 0.
-pub async fn run_command(
-    cmd: &str,
-    args: &[&str],
-) -> Result<String, BridgeError> {
+pub async fn run_command(cmd: &str, args: &[&str]) -> Result<String, BridgeError> {
     let output = tokio::process::Command::new(cmd)
         .args(args)
         .output()

@@ -47,8 +47,7 @@ fn validate_path(db_path: &str) -> Result<String, String> {
     // If no paths configured, allow any path under $HOME or /tmp (dev convenience).
     // In production, --allow-db-path flags should be used.
     if allowed.is_empty() {
-        let canonical = std::fs::canonicalize(db_path)
-            .map_err(|e| format!("path error: {e}"))?;
+        let canonical = std::fs::canonicalize(db_path).map_err(|e| format!("path error: {e}"))?;
         let canonical_str = canonical.to_string_lossy().to_string();
         if let Ok(home) = std::env::var("HOME") {
             if canonical_str.starts_with(&home) {
@@ -61,13 +60,12 @@ fn validate_path(db_path: &str) -> Result<String, String> {
         return Err("no databases configured and path is outside $HOME".to_string());
     }
 
-    let canonical = std::fs::canonicalize(db_path)
-        .map_err(|e| format!("path error: {e}"))?;
+    let canonical = std::fs::canonicalize(db_path).map_err(|e| format!("path error: {e}"))?;
     let canonical_str = canonical.to_string_lossy().to_string();
 
     for allowed_path in allowed {
-        let allowed_canonical = std::fs::canonicalize(allowed_path)
-            .map_err(|e| format!("allowed path error: {e}"))?;
+        let allowed_canonical =
+            std::fs::canonicalize(allowed_path).map_err(|e| format!("allowed path error: {e}"))?;
         if canonical_str.starts_with(&allowed_canonical.to_string_lossy().to_string()) {
             return Ok(canonical_str);
         }
@@ -110,8 +108,7 @@ pub fn query(db_path: &str, sql: &str) -> Result<QueryResult, String> {
     conn.busy_timeout(std::time::Duration::from_secs(5))
         .map_err(|e| format!("timeout config error: {e}"))?;
 
-    let mut stmt = conn.prepare(sql)
-        .map_err(|e| format!("SQL error: {e}"))?;
+    let mut stmt = conn.prepare(sql).map_err(|e| format!("SQL error: {e}"))?;
 
     let columns: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
     let col_count = columns.len();
@@ -123,11 +120,9 @@ pub fn query(db_path: &str, sql: &str) -> Result<QueryResult, String> {
                 let val: Value = match row.get_ref(i) {
                     Ok(rusqlite::types::ValueRef::Null) => Value::Null,
                     Ok(rusqlite::types::ValueRef::Integer(n)) => Value::Number(n.into()),
-                    Ok(rusqlite::types::ValueRef::Real(f)) => {
-                        serde_json::Number::from_f64(f)
-                            .map(Value::Number)
-                            .unwrap_or(Value::Null)
-                    }
+                    Ok(rusqlite::types::ValueRef::Real(f)) => serde_json::Number::from_f64(f)
+                        .map(Value::Number)
+                        .unwrap_or(Value::Null),
                     Ok(rusqlite::types::ValueRef::Text(s)) => {
                         Value::String(String::from_utf8_lossy(s).to_string())
                     }
@@ -208,8 +203,9 @@ mod tests {
         conn.execute_batch(
             "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, email TEXT);
              INSERT INTO users VALUES (1, 'Alice', 'alice@example.com');
-             INSERT INTO users VALUES (2, 'Bob', NULL);"
-        ).unwrap();
+             INSERT INTO users VALUES (2, 'Bob', NULL);",
+        )
+        .unwrap();
 
         (dir, path_str)
     }

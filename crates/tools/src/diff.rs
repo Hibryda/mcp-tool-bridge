@@ -84,7 +84,10 @@ fn detect_format(input: &str) -> Result<(), DiffFormatError> {
     // Try to detect what format it actually is
     let format_detected = if first_lines.iter().any(|l| l.starts_with("diff --git")) {
         // Has git header but no hunks — might be --stat or --name-only
-        if first_lines.iter().any(|l| l.contains('|') && (l.contains('+') || l.contains('-'))) {
+        if first_lines
+            .iter()
+            .any(|l| l.contains('|') && (l.contains('+') || l.contains('-')))
+        {
             "stat"
         } else if first_lines.iter().all(|l| !l.starts_with("--- ")) {
             "name-only"
@@ -283,19 +286,14 @@ fn parse_hunk_header(line: &str) -> Option<DiffHunk> {
 /// Parse "start,count" or just "start" (count defaults to 1).
 fn parse_range(s: &str) -> (u64, u64) {
     if let Some((start, count)) = s.split_once(',') {
-        (
-            start.parse().unwrap_or(1),
-            count.parse().unwrap_or(1),
-        )
+        (start.parse().unwrap_or(1), count.parse().unwrap_or(1))
     } else {
         (s.parse().unwrap_or(1), 1)
     }
 }
 
 /// Run git diff and parse the output.
-pub async fn run_diff(
-    args: &[&str],
-) -> Result<String, BridgeError> {
+pub async fn run_diff(args: &[&str]) -> Result<String, BridgeError> {
     let mut cmd_args = vec!["diff", "--no-ext-diff"];
     cmd_args.extend_from_slice(args);
     bridge_core::run_command("git", &cmd_args).await

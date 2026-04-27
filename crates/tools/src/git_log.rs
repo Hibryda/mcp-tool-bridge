@@ -84,9 +84,12 @@ pub async fn git_log(
     let count_arg = format!("-{max_count}");
 
     let mut args = vec![
-        "-c", "i18n.logOutputEncoding=UTF-8",
-        "-c", "core.quotePath=false",
-        "-C", &path_str,
+        "-c",
+        "i18n.logOutputEncoding=UTF-8",
+        "-c",
+        "core.quotePath=false",
+        "-C",
+        &path_str,
         "log",
         &format_arg,
         &count_arg,
@@ -143,7 +146,10 @@ fn parse_log_output(
         let (meta_part, stats_part) = match record.find('\x03') {
             Some(pos) => (&record[..pos], Some(record[pos + 1..].trim())),
             None => {
-                parse_warnings.push(format!("missing ETX in record: {}", &record[..record.len().min(40)]));
+                parse_warnings.push(format!(
+                    "missing ETX in record: {}",
+                    &record[..record.len().min(40)]
+                ));
                 continue;
             }
         };
@@ -226,8 +232,12 @@ fn parse_numstat(stats_text: &str) -> Option<CommitStats> {
         if parts.len() >= 3 {
             let added = parts[0].parse::<u32>().ok();
             let deleted = parts[1].parse::<u32>().ok();
-            if let Some(a) = added { total_add += a; }
-            if let Some(d) = deleted { total_del += d; }
+            if let Some(a) = added {
+                total_add += a;
+            }
+            if let Some(d) = deleted {
+                total_del += d;
+            }
             file_stats.push(FileStat {
                 file: parts[2].to_string(),
                 added,

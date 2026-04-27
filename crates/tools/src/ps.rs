@@ -32,7 +32,11 @@ pub async fn list_processes(
     max_results: usize,
 ) -> Result<PsResult, String> {
     let output = tokio::process::Command::new("ps")
-        .args(["-eo", "pid,ppid,user,comm,args,pcpu,rss,etimes", "--no-headers"])
+        .args([
+            "-eo",
+            "pid,ppid,user,comm,args,pcpu,rss,etimes",
+            "--no-headers",
+        ])
         .output()
         .await
         .map_err(|e| format!("ps failed: {e}"))?;
@@ -64,7 +68,10 @@ async fn list_processes_macos(
         .map_err(|e| format!("ps failed: {e}"))?;
 
     if !output.status.success() {
-        return Err(format!("ps failed: {}", String::from_utf8_lossy(&output.stderr).trim()));
+        return Err(format!(
+            "ps failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -106,7 +113,8 @@ fn parse_ps_output(
         let comm = parts[3].to_string();
 
         // Parse from the right: etimes (optional), rss, pcpu
-        let has_etimes = parts.len() >= 8 && parts.last().and_then(|s| s.parse::<u64>().ok()).is_some();
+        let has_etimes =
+            parts.len() >= 8 && parts.last().and_then(|s| s.parse::<u64>().ok()).is_some();
 
         let (elapsed_seconds, rss_idx, pcpu_idx) = if has_etimes {
             let etimes: Option<u64> = parts.last().and_then(|s| s.parse().ok());
@@ -116,7 +124,10 @@ fn parse_ps_output(
         };
 
         let mem_rss_kb: u64 = parts.get(rss_idx).and_then(|s| s.parse().ok()).unwrap_or(0);
-        let cpu_percent: f64 = parts.get(pcpu_idx).and_then(|s| s.parse().ok()).unwrap_or(0.0);
+        let cpu_percent: f64 = parts
+            .get(pcpu_idx)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0);
 
         // Everything between comm and pcpu is args
         let args_end = pcpu_idx;
@@ -141,7 +152,8 @@ fn parse_ps_output(
     let total_before = all_procs.len() as u64;
 
     // Apply filters
-    let filtered: Vec<ProcessInfo> = all_procs.into_iter()
+    let filtered: Vec<ProcessInfo> = all_procs
+        .into_iter()
         .filter(|p| {
             if let Some(pat) = name_pattern {
                 if !p.command.contains(pat) && !p.args.contains(pat) {

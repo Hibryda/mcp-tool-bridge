@@ -117,34 +117,33 @@ fn parse_include_output(output: &str) -> Result<GhApiResult, String> {
     };
 
     // Parse status code from first line
-    let status_code = header_section.lines()
+    let status_code = header_section
+        .lines()
         .next()
         .and_then(|l| l.split_whitespace().nth(1))
         .and_then(|s| s.parse::<u16>().ok());
 
     // Parse rate limit
-    let rate_limit = header_section.lines()
+    let rate_limit = header_section
+        .lines()
         .find(|l| l.to_lowercase().starts_with("x-ratelimit-remaining:"))
         .and_then(|l| l.split(':').nth(1))
         .and_then(|v| v.trim().parse::<u64>().ok());
 
     // Parse Link header for pagination
-    let link_header = header_section.lines()
+    let link_header = header_section
+        .lines()
         .find(|l| l.to_lowercase().starts_with("link:"));
     let pagination = link_header.map(|l| {
         let has_next = l.contains("rel=\"next\"");
         PaginationInfo {
             has_next,
-            next_page: if has_next {
-                extract_next_url(l)
-            } else {
-                None
-            },
+            next_page: if has_next { extract_next_url(l) } else { None },
         }
     });
 
-    let body: Value = serde_json::from_str(body_str)
-        .unwrap_or(Value::String(body_str.trim().to_string()));
+    let body: Value =
+        serde_json::from_str(body_str).unwrap_or(Value::String(body_str.trim().to_string()));
 
     let body_is_array = body.is_array();
     let item_count = body.as_array().map(|a| a.len() as u64);
@@ -162,8 +161,8 @@ fn parse_include_output(output: &str) -> Result<GhApiResult, String> {
 /// Parse --paginate output (concatenated JSON arrays).
 fn parse_paginate_output(output: &str, max_items: usize) -> Result<GhApiResult, String> {
     // gh --paginate concatenates JSON arrays — may need to handle multiple arrays
-    let body: Value = serde_json::from_str(output)
-        .unwrap_or(Value::String(output.trim().to_string()));
+    let body: Value =
+        serde_json::from_str(output).unwrap_or(Value::String(output.trim().to_string()));
 
     let (body, item_count) = if let Some(arr) = body.as_array() {
         let _truncated = arr.len() > max_items;
@@ -188,9 +187,12 @@ fn parse_paginate_output(output: &str, max_items: usize) -> Result<GhApiResult, 
 fn extract_next_url(link: &str) -> Option<String> {
     for part in link.split(',') {
         if part.contains("rel=\"next\"") {
-            let url = part.trim()
-                .strip_prefix("Link: ").unwrap_or(part.trim())
-                .split('>').next()?
+            let url = part
+                .trim()
+                .strip_prefix("Link: ")
+                .unwrap_or(part.trim())
+                .split('>')
+                .next()?
                 .strip_prefix('<')?;
             return Some(url.to_string());
         }
@@ -215,12 +217,15 @@ fn redact_auth(msg: String) -> String {
     let mut i = 0;
     while let Some(pos) = result[i..].find("ghp_") {
         let start = i + pos;
-        let end = result[start..].find(|c: char| c.is_whitespace() || c == '"' || c == '\'')
+        let end = result[start..]
+            .find(|c: char| c.is_whitespace() || c == '"' || c == '\'')
             .map(|e| start + e)
             .unwrap_or(result.len());
         result = format!("{}[REDACTED]{}", &result[..start], &result[end..]);
         i = start + 10;
-        if i >= result.len() { break; }
+        if i >= result.len() {
+            break;
+        }
     }
     result
 }

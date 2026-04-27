@@ -1,13 +1,14 @@
 use rmcp::{
-    ErrorData as McpError, ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter, tool::ToolCallContext, wrapper::Parameters},
     model::{
-        CallToolRequestParams, CallToolResult, Content, ListToolsResult,
-        PaginatedRequestParams, ServerCapabilities, ServerInfo,
+        CallToolRequestParams, CallToolResult, Content, ListToolsResult, PaginatedRequestParams,
+        ServerCapabilities, ServerInfo,
     },
-    schemars, tool, tool_router,
+    schemars,
     service::{RequestContext, RoleServer},
+    tool, tool_router,
     transport::stdio,
+    ErrorData as McpError, ServerHandler, ServiceExt,
 };
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
@@ -16,17 +17,17 @@ mod batch;
 mod curl;
 mod diff;
 mod dispatch;
+mod docker;
 mod find;
 mod gh_api;
 mod git_log;
 mod git_show;
 mod git_status;
-mod ps;
-mod docker;
 mod kubectl;
 mod ls;
 mod lsof;
 mod pipe;
+mod ps;
 mod sqlite;
 mod wc;
 
@@ -273,7 +274,10 @@ impl std::fmt::Debug for ToolBridge {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ToolBridge")
             .field("enabled_tools", &self.enabled_tools)
-            .field("dispatch_table_keys", &self.dispatch_table.keys().collect::<Vec<_>>())
+            .field(
+                "dispatch_table_keys",
+                &self.dispatch_table.keys().collect::<Vec<_>>(),
+            )
             .finish()
     }
 }
@@ -290,10 +294,14 @@ impl ToolBridge {
     }
 
     fn is_enabled(&self, name: &str) -> bool {
-        self.enabled_tools.as_ref().is_none_or(|set| set.contains(name))
+        self.enabled_tools
+            .as_ref()
+            .is_none_or(|set| set.contains(name))
     }
 
-    #[tool(description = "List directory contents as structured JSON. Returns entries with name, path, type, size, permissions, and modified time.")]
+    #[tool(
+        description = "List directory contents as structured JSON. Returns entries with name, path, type, size, permissions, and modified time."
+    )]
     async fn ls(
         &self,
         Parameters(params): Parameters<LsParams>,
@@ -312,7 +320,9 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "Parse unified diff into structured hunks with line numbers. Provide raw diff text via `input`, or run `git diff` via `git_args`. Returns typed hunks with old/new line numbers, additions, deletions, and context.")]
+    #[tool(
+        description = "Parse unified diff into structured hunks with line numbers. Provide raw diff text via `input`, or run `git diff` via `git_args`. Returns typed hunks with old/new line numbers, additions, deletions, and context."
+    )]
     async fn diff(
         &self,
         Parameters(params): Parameters<DiffParams>,
@@ -324,9 +334,9 @@ impl ToolBridge {
                 match diff::run_diff(&arg_refs).await {
                     Ok(output) => output,
                     Err(e) => {
-                        return Ok(CallToolResult::error(vec![Content::text(
-                            format!("git diff failed: {e}"),
-                        )]));
+                        return Ok(CallToolResult::error(vec![Content::text(format!(
+                            "git diff failed: {e}"
+                        ))]));
                     }
                 }
             }
@@ -368,7 +378,9 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "List open files and network sockets as structured JSON. Filter by port, PID, or protocol. Returns processes with typed file descriptors including fd, type, protocol, and name.")]
+    #[tool(
+        description = "List open files and network sockets as structured JSON. Filter by port, PID, or protocol. Returns processes with typed file descriptors including fd, type, protocol, and name."
+    )]
     async fn lsof(
         &self,
         Parameters(params): Parameters<LsofParams>,
@@ -399,7 +411,10 @@ impl ToolBridge {
             args.push(pid.clone());
         }
 
-        if params.network_only.unwrap_or(false) && params.port.is_none() && params.protocol.is_none() {
+        if params.network_only.unwrap_or(false)
+            && params.port.is_none()
+            && params.protocol.is_none()
+        {
             args.push("-i".to_string());
         }
 
@@ -415,13 +430,15 @@ impl ToolBridge {
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?;
                 Ok(CallToolResult::success(vec![Content::text(json)]))
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("lsof failed: {e}"),
-            )])),
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "lsof failed: {e}"
+            ))])),
         }
     }
 
-    #[tool(description = "Structured git status: branch info (head, upstream, ahead/behind), file entries (modified/added/deleted/renamed/untracked), counts. Uses --porcelain=v2. Typed errors: NOT_A_REPO, DETACHED_HEAD, VERSION_TOO_OLD.")]
+    #[tool(
+        description = "Structured git status: branch info (head, upstream, ahead/behind), file entries (modified/added/deleted/renamed/untracked), counts. Uses --porcelain=v2. Typed errors: NOT_A_REPO, DETACHED_HEAD, VERSION_TOO_OLD."
+    )]
     async fn git_status(
         &self,
         Parameters(params): Parameters<GitStatusParams>,
@@ -440,7 +457,9 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "Structured git log: commits with hash, author, date, subject, parent hashes, refs, merge detection. Stable pagination via snapshot_oid. Optional file-level stats (--numstat).")]
+    #[tool(
+        description = "Structured git log: commits with hash, author, date, subject, parent hashes, refs, merge detection. Stable pagination via snapshot_oid. Optional file-level stats (--numstat)."
+    )]
     async fn git_log(
         &self,
         Parameters(params): Parameters<GitLogParams>,
@@ -463,7 +482,9 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "Show a single git commit: hash, author, date, subject, body, parents, merge detection. Restricted to commit objects (blobs/trees return typed error). Optional file stats.")]
+    #[tool(
+        description = "Show a single git commit: hash, author, date, subject, body, parents, merge detection. Restricted to commit objects (blobs/trees return typed error). Optional file stats."
+    )]
     async fn git_show(
         &self,
         Parameters(params): Parameters<GitShowParams>,
@@ -483,7 +504,9 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "Structured process listing: PID, PPID, user, command, args, CPU%, memory RSS, elapsed time. Filter by name pattern, user, or PID list. Cross-platform (Linux + macOS).")]
+    #[tool(
+        description = "Structured process listing: PID, PPID, user, command, args, CPU%, memory RSS, elapsed time. Filter by name pattern, user, or PID list. Cross-platform (Linux + macOS)."
+    )]
     async fn ps(
         &self,
         Parameters(params): Parameters<PsParams>,
@@ -504,7 +527,9 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "GitHub API access via gh CLI. Returns structured JSON with status code, body, rate limit info, and pagination. Read-only by default. Auth tokens redacted from errors.")]
+    #[tool(
+        description = "GitHub API access via gh CLI. Returns structured JSON with status code, body, rate limit info, and pagination. Read-only by default. Auth tokens redacted from errors."
+    )]
     async fn gh_api(
         &self,
         Parameters(params): Parameters<GhApiParams>,
@@ -526,7 +551,9 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "Recursively find files with filters: name glob (*.rs, Cargo*), type (file/directory/symlink), size range, max depth. Returns structured entries with path, type, size, permissions, modified time, depth.")]
+    #[tool(
+        description = "Recursively find files with filters: name glob (*.rs, Cargo*), type (file/directory/symlink), size range, max depth. Returns structured entries with path, type, size, permissions, modified time, depth."
+    )]
     async fn find(
         &self,
         Parameters(params): Parameters<FindParams>,
@@ -550,7 +577,9 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "HTTP request with structured response: status code, headers, body, timing breakdown (DNS, connect, TLS, first byte, total), redirect count, content type detection, and JSON body detection.")]
+    #[tool(
+        description = "HTTP request with structured response: status code, headers, body, timing breakdown (DNS, connect, TLS, first byte, total), redirect count, content type detection, and JSON body detection."
+    )]
     async fn curl(
         &self,
         Parameters(params): Parameters<CurlParams>,
@@ -573,7 +602,9 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "List Kubernetes resources as structured JSON with typed metadata (name, namespace, uid, labels, annotations, timestamps). Spec and status are passthrough JSON. Works with any resource type.")]
+    #[tool(
+        description = "List Kubernetes resources as structured JSON with typed metadata (name, namespace, uid, labels, annotations, timestamps). Spec and status are passthrough JSON. Works with any resource type."
+    )]
     async fn kubectl_list(
         &self,
         Parameters(params): Parameters<KubectlListParams>,
@@ -595,11 +626,15 @@ impl ToolBridge {
                 }
                 Err(e) => Ok(CallToolResult::error(vec![Content::text(e.to_string())])),
             },
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!("kubectl failed: {e}"))])),
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "kubectl failed: {e}"
+            ))])),
         }
     }
 
-    #[tool(description = "Get a single Kubernetes resource as structured JSON with typed metadata. Spec and status are passthrough JSON.")]
+    #[tool(
+        description = "Get a single Kubernetes resource as structured JSON with typed metadata. Spec and status are passthrough JSON."
+    )]
     async fn kubectl_get(
         &self,
         Parameters(params): Parameters<KubectlGetParams>,
@@ -615,17 +650,20 @@ impl ToolBridge {
                 }
                 Err(e) => Ok(CallToolResult::error(vec![Content::text(e.to_string())])),
             },
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!("kubectl failed: {e}"))])),
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "kubectl failed: {e}"
+            ))])),
         }
     }
 
-    #[tool(description = "List Docker containers as structured JSON with id, name, image, state, status, ports, and labels. Connects to local Docker daemon.")]
+    #[tool(
+        description = "List Docker containers as structured JSON with id, name, image, state, status, ports, and labels. Connects to local Docker daemon."
+    )]
     async fn docker_list(
         &self,
         Parameters(params): Parameters<DockerListParams>,
     ) -> Result<CallToolResult, McpError> {
-        let client = docker::connect()
-            .map_err(|e| McpError::internal_error(e, None))?;
+        let client = docker::connect().map_err(|e| McpError::internal_error(e, None))?;
 
         match docker::list_containers(&client, params.all.unwrap_or(false)).await {
             Ok(result) => {
@@ -637,13 +675,14 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "Inspect a Docker container. Returns structured state (running, pid, exit code), network settings, mounts, and config.")]
+    #[tool(
+        description = "Inspect a Docker container. Returns structured state (running, pid, exit code), network settings, mounts, and config."
+    )]
     async fn docker_inspect(
         &self,
         Parameters(params): Parameters<DockerInspectParams>,
     ) -> Result<CallToolResult, McpError> {
-        let client = docker::connect()
-            .map_err(|e| McpError::internal_error(e, None))?;
+        let client = docker::connect().map_err(|e| McpError::internal_error(e, None))?;
 
         match docker::inspect_container(&client, &params.container).await {
             Ok(result) => {
@@ -655,12 +694,11 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "List Docker images as structured JSON with id, tags, size, and created timestamp.")]
-    async fn docker_images(
-        &self,
-    ) -> Result<CallToolResult, McpError> {
-        let client = docker::connect()
-            .map_err(|e| McpError::internal_error(e, None))?;
+    #[tool(
+        description = "List Docker images as structured JSON with id, tags, size, and created timestamp."
+    )]
+    async fn docker_images(&self) -> Result<CallToolResult, McpError> {
+        let client = docker::connect().map_err(|e| McpError::internal_error(e, None))?;
 
         match docker::list_images(&client).await {
             Ok(result) => {
@@ -672,7 +710,9 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "Execute a read-only SQL query against a SQLite database. Returns structured columns and typed rows (integers, floats, strings, nulls).")]
+    #[tool(
+        description = "Execute a read-only SQL query against a SQLite database. Returns structured columns and typed rows (integers, floats, strings, nulls)."
+    )]
     async fn sqlite_query(
         &self,
         Parameters(params): Parameters<SqliteQueryParams>,
@@ -687,7 +727,9 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "List tables and their schemas in a SQLite database. Returns table names with column info (name, type, not_null, primary_key).")]
+    #[tool(
+        description = "List tables and their schemas in a SQLite database. Returns table names with column info (name, type, not_null, primary_key)."
+    )]
     async fn sqlite_tables(
         &self,
         Parameters(params): Parameters<SqliteTablesParams>,
@@ -702,7 +744,9 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "Count lines, words, bytes, and characters. Provide a file path, multiple paths, or raw text input. Returns structured counts.")]
+    #[tool(
+        description = "Count lines, words, bytes, and characters. Provide a file path, multiple paths, or raw text input. Returns structured counts."
+    )]
     async fn wc(
         &self,
         Parameters(params): Parameters<WcParams>,
@@ -720,12 +764,16 @@ impl ToolBridge {
         }
     }
 
-    #[tool(description = "Run multiple tool operations in a single call. Operations execute in parallel. Each operation uses the same params as calling the tool directly. Returns all results with per-operation success/error isolation.")]
+    #[tool(
+        description = "Run multiple tool operations in a single call. Operations execute in parallel. Each operation uses the same params as calling the tool directly. Returns all results with per-operation success/error isolation."
+    )]
     async fn batch(
         &self,
         Parameters(params): Parameters<BatchParams>,
     ) -> Result<CallToolResult, McpError> {
-        let ops: Vec<batch::BatchOperation> = params.operations.into_iter()
+        let ops: Vec<batch::BatchOperation> = params
+            .operations
+            .into_iter()
             .map(|op| batch::BatchOperation {
                 tool: op.tool,
                 params: op.params,
@@ -738,7 +786,9 @@ impl ToolBridge {
         Ok(CallToolResult::success(vec![Content::text(json)]))
     }
 
-    #[tool(description = "Run a listing tool and filter its output on structured fields. Filters use AND semantics. Source tools: ls, lsof, kubectl_list, docker_list, docker_images. Filter modes: contains, equals, starts_with. Supports dot notation for nested fields (e.g. metadata.name).")]
+    #[tool(
+        description = "Run a listing tool and filter its output on structured fields. Filters use AND semantics. Source tools: ls, lsof, kubectl_list, docker_list, docker_images. Filter modes: contains, equals, starts_with. Supports dot notation for nested fields (e.g. metadata.name)."
+    )]
     async fn pipe(
         &self,
         Parameters(params): Parameters<PipeParams>,
@@ -748,8 +798,10 @@ impl ToolBridge {
                 tool: params.source.tool,
                 params: params.source.params,
             },
-            filters: params.filters.into_iter().map(|f| {
-                pipe::Filter {
+            filters: params
+                .filters
+                .into_iter()
+                .map(|f| pipe::Filter {
                     field: f.field,
                     pattern: f.pattern,
                     mode: match f.mode.as_str() {
@@ -757,8 +809,8 @@ impl ToolBridge {
                         "starts_with" => pipe::FilterMode::StartsWith,
                         _ => pipe::FilterMode::Contains,
                     },
-                }
-            }).collect(),
+                })
+                .collect(),
             limit: params.limit,
         };
 
@@ -792,7 +844,11 @@ impl ServerHandler for ToolBridge {
             if let Some(ref enabled) = self.enabled_tools {
                 tools.retain(|t| enabled.contains(t.name.as_ref()));
             }
-            Ok(ListToolsResult { meta: None, next_cursor: None, tools })
+            Ok(ListToolsResult {
+                meta: None,
+                next_cursor: None,
+                tools,
+            })
         }
     }
 
@@ -824,10 +880,26 @@ impl ServerHandler for ToolBridge {
 // ── CLI argument parsing ──────────────────────────────────────────────
 
 const ALL_TOOLS: &[&str] = &[
-    "batch", "curl", "diff", "docker_images", "docker_inspect", "docker_list",
-    "find", "gh_api", "git_log", "git_show", "git_status",
-    "kubectl_get", "kubectl_list", "ls", "lsof", "pipe", "ps",
-    "sqlite_query", "sqlite_tables", "wc",
+    "batch",
+    "curl",
+    "diff",
+    "docker_images",
+    "docker_inspect",
+    "docker_list",
+    "find",
+    "gh_api",
+    "git_log",
+    "git_show",
+    "git_status",
+    "kubectl_get",
+    "kubectl_list",
+    "ls",
+    "lsof",
+    "pipe",
+    "ps",
+    "sqlite_query",
+    "sqlite_tables",
+    "wc",
 ];
 
 fn parse_tools_flag() -> Option<HashSet<String>> {
@@ -835,7 +907,8 @@ fn parse_tools_flag() -> Option<HashSet<String>> {
     for (i, arg) in args.iter().enumerate() {
         if arg == "--tools" {
             if let Some(value) = args.get(i + 1) {
-                let tools: HashSet<String> = value.split(',')
+                let tools: HashSet<String> = value
+                    .split(',')
                     .map(|s| s.trim().to_string())
                     .filter(|s| !s.is_empty())
                     .collect();
@@ -843,7 +916,8 @@ fn parse_tools_flag() -> Option<HashSet<String>> {
             }
         }
         if let Some(value) = arg.strip_prefix("--tools=") {
-            let tools: HashSet<String> = value.split(',')
+            let tools: HashSet<String> = value
+                .split(',')
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect();
@@ -882,7 +956,10 @@ async fn main() -> anyhow::Result<()> {
             tools.iter().cloned().collect::<Vec<_>>().join(", ")
         );
     } else {
-        tracing::info!("mcp-tool-bridge v{} starting (all tools)", env!("CARGO_PKG_VERSION"));
+        tracing::info!(
+            "mcp-tool-bridge v{} starting (all tools)",
+            env!("CARGO_PKG_VERSION")
+        );
     }
 
     let service = ToolBridge::new(enabled)

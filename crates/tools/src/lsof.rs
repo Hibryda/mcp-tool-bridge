@@ -187,7 +187,10 @@ n192.168.0.105:43726->160.79.104.10:443
         assert_eq!(result.processes[0].files.len(), 2);
         assert_eq!(result.processes[0].files[0].fd, "7");
         assert_eq!(result.processes[0].files[0].fd_type, "IPv4");
-        assert_eq!(result.processes[0].files[0].protocol, Some("TCP".to_string()));
+        assert_eq!(
+            result.processes[0].files[0].protocol,
+            Some("TCP".to_string())
+        );
         assert_eq!(result.processes[0].files[0].name, "127.0.0.1:8766");
     }
 

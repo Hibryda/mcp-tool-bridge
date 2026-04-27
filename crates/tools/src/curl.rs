@@ -98,12 +98,17 @@ fn parse_curl_output(output: &str, original_url: &str) -> Result<HttpResponse, B
         dns_ms: timing_vars.get("time_namelookup").copied().unwrap_or(0.0) * 1000.0,
         connect_ms: timing_vars.get("time_connect").copied().unwrap_or(0.0) * 1000.0,
         tls_ms: timing_vars.get("time_appconnect").copied().unwrap_or(0.0) * 1000.0,
-        first_byte_ms: timing_vars.get("time_starttransfer").copied().unwrap_or(0.0) * 1000.0,
+        first_byte_ms: timing_vars
+            .get("time_starttransfer")
+            .copied()
+            .unwrap_or(0.0)
+            * 1000.0,
         total_ms: timing_vars.get("time_total").copied().unwrap_or(0.0) * 1000.0,
     };
 
     Ok(HttpResponse {
-        status_code: timing_vars.get("status_code")
+        status_code: timing_vars
+            .get("status_code")
             .map(|v| *v as u16)
             .unwrap_or(status_code),
         status_text,
@@ -114,10 +119,12 @@ fn parse_curl_output(output: &str, original_url: &str) -> Result<HttpResponse, B
         timing,
         size_bytes: timing_vars.get("size_download").copied().unwrap_or(0.0) as u64,
         redirect_count: timing_vars.get("redirect_count").copied().unwrap_or(0.0) as u32,
-        effective_url: timing_vars.get("effective_url")
+        effective_url: timing_vars
+            .get("effective_url")
             .map(|_| {
                 // effective_url is a string, not a float — extract from raw
-                timing_part.lines()
+                timing_part
+                    .lines()
                     .find(|l| l.starts_with("effective_url:"))
                     .and_then(|l| l.strip_prefix("effective_url:"))
                     .unwrap_or(original_url)
@@ -162,7 +169,8 @@ fn split_headers_body(response: &str) -> (String, String) {
 
 fn parse_status_line(header_section: &str) -> (u16, String) {
     // Find the last HTTP status line (for redirects, there may be multiple)
-    let status_line = header_section.lines()
+    let status_line = header_section
+        .lines()
         .rev()
         .find(|l| l.starts_with("HTTP/"))
         .unwrap_or("");
@@ -182,10 +190,7 @@ fn parse_headers(header_section: &str) -> HashMap<String, String> {
             continue;
         }
         if let Some((name, value)) = line.split_once(':') {
-            headers.insert(
-                name.trim().to_lowercase(),
-                value.trim().to_string(),
-            );
+            headers.insert(name.trim().to_lowercase(), value.trim().to_string());
         }
     }
     headers

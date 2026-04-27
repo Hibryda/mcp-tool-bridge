@@ -54,11 +54,24 @@ pub struct KubeGetResult {
 fn extract_metadata(obj: &Value) -> ResourceMetadata {
     let meta = obj.get("metadata").cloned().unwrap_or(Value::Null);
     ResourceMetadata {
-        name: meta.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        namespace: meta.get("namespace").and_then(|v| v.as_str()).map(String::from),
+        name: meta
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        namespace: meta
+            .get("namespace")
+            .and_then(|v| v.as_str())
+            .map(String::from),
         uid: meta.get("uid").and_then(|v| v.as_str()).map(String::from),
-        resource_version: meta.get("resourceVersion").and_then(|v| v.as_str()).map(String::from),
-        creation_timestamp: meta.get("creationTimestamp").and_then(|v| v.as_str()).map(String::from),
+        resource_version: meta
+            .get("resourceVersion")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        creation_timestamp: meta
+            .get("creationTimestamp")
+            .and_then(|v| v.as_str())
+            .map(String::from),
         labels: meta.get("labels").cloned(),
         annotations: meta.get("annotations").cloned(),
     }
@@ -67,8 +80,16 @@ fn extract_metadata(obj: &Value) -> ResourceMetadata {
 /// Parse a single K8s resource JSON object into typed struct.
 fn parse_resource(obj: &Value) -> KubeResource {
     KubeResource {
-        api_version: obj.get("apiVersion").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        kind: obj.get("kind").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        api_version: obj
+            .get("apiVersion")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        kind: obj
+            .get("kind")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
         metadata: extract_metadata(obj),
         spec: obj.get("spec").cloned(),
         status: obj.get("status").cloned(),
@@ -76,12 +97,21 @@ fn parse_resource(obj: &Value) -> KubeResource {
 }
 
 /// Parse kubectl -o json output for a list response.
-pub fn parse_list_response(json_str: &str, resource_type: &str, namespace: &str) -> Result<KubeListResult, BridgeError> {
+pub fn parse_list_response(
+    json_str: &str,
+    resource_type: &str,
+    namespace: &str,
+) -> Result<KubeListResult, BridgeError> {
     let value: Value = serde_json::from_str(json_str)
         .map_err(|e| BridgeError::Parse(format!("invalid JSON from kubectl: {e}")))?;
 
-    let kind = value.get("kind").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let items = value.get("items")
+    let kind = value
+        .get("kind")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let items = value
+        .get("items")
         .and_then(|v| v.as_array())
         .map(|arr| arr.iter().map(parse_resource).collect::<Vec<_>>())
         .unwrap_or_default();
@@ -166,7 +196,10 @@ mod tests {
         assert_eq!(result.kind, "PodList");
         assert_eq!(result.count, 2);
         assert_eq!(result.items[0].metadata.name, "nginx-abc123");
-        assert_eq!(result.items[0].metadata.namespace, Some("default".to_string()));
+        assert_eq!(
+            result.items[0].metadata.namespace,
+            Some("default".to_string())
+        );
         assert_eq!(result.items[0].kind, "Pod");
     }
 
@@ -175,7 +208,10 @@ mod tests {
         let result = parse_list_response(SAMPLE_POD_LIST, "pods", "default").unwrap();
         let pod = &result.items[0];
         assert_eq!(pod.metadata.uid, Some("12345-abcde".to_string()));
-        assert_eq!(pod.metadata.creation_timestamp, Some("2026-03-28T10:00:00Z".to_string()));
+        assert_eq!(
+            pod.metadata.creation_timestamp,
+            Some("2026-03-28T10:00:00Z".to_string())
+        );
         assert!(pod.metadata.labels.is_some());
     }
 
@@ -211,7 +247,10 @@ mod tests {
         let result = parse_get_response(SAMPLE_SINGLE_POD).unwrap();
         assert_eq!(result.resource.kind, "Pod");
         assert_eq!(result.resource.metadata.name, "test-pod");
-        assert_eq!(result.resource.metadata.namespace, Some("kube-system".to_string()));
+        assert_eq!(
+            result.resource.metadata.namespace,
+            Some("kube-system".to_string())
+        );
     }
 
     #[test]

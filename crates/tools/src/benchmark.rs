@@ -96,7 +96,10 @@ rename to new_name.rs
         assert_eq!(r.total_additions, 1);
         assert_eq!(r.total_deletions, 1);
         // The "No newline" marker should not appear as a diff line
-        assert!(r.files[0].hunks[0].lines.iter().all(|l| !l.content.contains("No newline")));
+        assert!(r.files[0].hunks[0]
+            .lines
+            .iter()
+            .all(|l| !l.content.contains("No newline")));
     }
 
     /// Large multi-file diff — agents lose count across file boundaries.
@@ -104,14 +107,16 @@ rename to new_name.rs
     fn five_file_diff() {
         let mut diff = String::new();
         for i in 1..=5 {
-            diff.push_str(&format!("\
+            diff.push_str(&format!(
+                "\
 diff --git a/file{i}.rs b/file{i}.rs
 --- a/file{i}.rs
 +++ b/file{i}.rs
 @@ -1,1 +1,2 @@
  existing line
 +added in file {i}
-"));
+"
+            ));
         }
         let r = parse_unified_diff(&diff).unwrap();
         assert_eq!(r.files.len(), 5);
@@ -176,7 +181,9 @@ deleted file mode 100644
         assert_eq!(r.total_additions, 3);
         assert_eq!(r.total_deletions, 0);
         // Verify line numbers are correct
-        let adds: Vec<u64> = r.files[0].hunks[0].lines.iter()
+        let adds: Vec<u64> = r.files[0].hunks[0]
+            .lines
+            .iter()
             .filter(|l| l.kind == "add")
             .filter_map(|l| l.new_line)
             .collect();
@@ -292,7 +299,10 @@ PUDP
 n0.0.0.0:53
 ";
         let r = parse_lsof_output(output);
-        assert_eq!(r.processes[0].files[0].name, "192.168.1.100:45678->10.0.0.1:5432");
+        assert_eq!(
+            r.processes[0].files[0].name,
+            "192.168.1.100:45678->10.0.0.1:5432"
+        );
         assert_eq!(r.processes[0].files[0].protocol, Some("TCP".to_string()));
         assert_eq!(r.processes[0].files[1].protocol, Some("UDP".to_string()));
     }

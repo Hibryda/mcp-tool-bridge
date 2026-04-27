@@ -44,9 +44,12 @@ pub async fn git_show(
     let format_str = "%x02%H%x00%an%x00%ae%x00%ai%x00%s%x00%b%x00%P%x03";
 
     let mut args = vec![
-        "-c".to_string(), "i18n.logOutputEncoding=UTF-8".to_string(),
-        "-c".to_string(), "core.quotePath=false".to_string(),
-        "-C".to_string(), path_str,
+        "-c".to_string(),
+        "i18n.logOutputEncoding=UTF-8".to_string(),
+        "-c".to_string(),
+        "core.quotePath=false".to_string(),
+        "-C".to_string(),
+        path_str,
         "show".to_string(),
         format!("--format={format_str}"),
         "--no-patch".to_string(),
@@ -89,16 +92,20 @@ fn parse_show_output(
     include_stats: bool,
 ) -> Result<GitShowResult, super::git_status::GitError> {
     // Find STX..ETX block
-    let start = output.find('\x02').ok_or_else(|| super::git_status::GitError {
-        code: "PARSE_ERROR".into(),
-        message: "no STX marker in git show output".into(),
-        raw_stderr: None,
-    })?;
-    let etx = output[start..].find('\x03').ok_or_else(|| super::git_status::GitError {
-        code: "PARSE_ERROR".into(),
-        message: "no ETX marker in git show output".into(),
-        raw_stderr: None,
-    })?;
+    let start = output
+        .find('\x02')
+        .ok_or_else(|| super::git_status::GitError {
+            code: "PARSE_ERROR".into(),
+            message: "no STX marker in git show output".into(),
+            raw_stderr: None,
+        })?;
+    let etx = output[start..]
+        .find('\x03')
+        .ok_or_else(|| super::git_status::GitError {
+            code: "PARSE_ERROR".into(),
+            message: "no ETX marker in git show output".into(),
+            raw_stderr: None,
+        })?;
 
     let meta = &output[start + 1..start + etx];
     let fields: Vec<&str> = meta.split('\x00').collect();
@@ -136,7 +143,10 @@ fn parse_show_output(
     })
 }
 
-async fn get_object_type(path: &str, reference: &str) -> Result<String, super::git_status::GitError> {
+async fn get_object_type(
+    path: &str,
+    reference: &str,
+) -> Result<String, super::git_status::GitError> {
     let output = tokio::process::Command::new("git")
         .args(["-C", path, "cat-file", "-t", reference])
         .output()

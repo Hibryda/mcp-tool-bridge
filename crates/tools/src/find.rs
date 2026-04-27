@@ -140,9 +140,17 @@ fn walk_dir(
                 // Still recurse into dirs even if type doesn't match
                 if metadata.is_dir() {
                     walk_dir(
-                        &entry_path, root, depth + 1, max_depth,
-                        name_pattern, file_type, min_size, max_size,
-                        max_results, results, truncated,
+                        &entry_path,
+                        root,
+                        depth + 1,
+                        max_depth,
+                        name_pattern,
+                        file_type,
+                        min_size,
+                        max_size,
+                        max_results,
+                        results,
+                        truncated,
                     )?;
                 }
                 continue;
@@ -153,9 +161,17 @@ fn walk_dir(
             if !matches_glob(&name, pattern) {
                 if metadata.is_dir() {
                     walk_dir(
-                        &entry_path, root, depth + 1, max_depth,
-                        name_pattern, file_type, min_size, max_size,
-                        max_results, results, truncated,
+                        &entry_path,
+                        root,
+                        depth + 1,
+                        max_depth,
+                        name_pattern,
+                        file_type,
+                        min_size,
+                        max_size,
+                        max_results,
+                        results,
+                        truncated,
                     )?;
                 }
                 continue;
@@ -166,9 +182,17 @@ fn walk_dir(
             if metadata.len() < min {
                 if metadata.is_dir() {
                     walk_dir(
-                        &entry_path, root, depth + 1, max_depth,
-                        name_pattern, file_type, min_size, max_size,
-                        max_results, results, truncated,
+                        &entry_path,
+                        root,
+                        depth + 1,
+                        max_depth,
+                        name_pattern,
+                        file_type,
+                        min_size,
+                        max_size,
+                        max_results,
+                        results,
+                        truncated,
                     )?;
                 }
                 continue;
@@ -179,9 +203,17 @@ fn walk_dir(
             if metadata.len() > max {
                 if metadata.is_dir() {
                     walk_dir(
-                        &entry_path, root, depth + 1, max_depth,
-                        name_pattern, file_type, min_size, max_size,
-                        max_results, results, truncated,
+                        &entry_path,
+                        root,
+                        depth + 1,
+                        max_depth,
+                        name_pattern,
+                        file_type,
+                        min_size,
+                        max_size,
+                        max_results,
+                        results,
+                        truncated,
                     )?;
                 }
                 continue;
@@ -210,9 +242,17 @@ fn walk_dir(
         // Recurse into directories
         if metadata.is_dir() {
             walk_dir(
-                &entry_path, root, depth + 1, max_depth,
-                name_pattern, file_type, min_size, max_size,
-                max_results, results, truncated,
+                &entry_path,
+                root,
+                depth + 1,
+                max_depth,
+                name_pattern,
+                file_type,
+                min_size,
+                max_size,
+                max_results,
+                results,
+                truncated,
             )?;
         }
     }
@@ -274,14 +314,34 @@ mod tests {
     #[tokio::test]
     async fn find_all() {
         let dir = create_test_tree();
-        let r = find_files(dir.path().to_str().unwrap(), None, None, None, None, None, None).await.unwrap();
+        let r = find_files(
+            dir.path().to_str().unwrap(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
         assert!(r.count > 5);
     }
 
     #[tokio::test]
     async fn find_by_name() {
         let dir = create_test_tree();
-        let r = find_files(dir.path().to_str().unwrap(), Some("*.rs"), None, None, None, None, None).await.unwrap();
+        let r = find_files(
+            dir.path().to_str().unwrap(),
+            Some("*.rs"),
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
         assert_eq!(r.count, 3);
         assert!(r.entries.iter().all(|e| e.name.ends_with(".rs")));
     }
@@ -289,14 +349,34 @@ mod tests {
     #[tokio::test]
     async fn find_by_type_file() {
         let dir = create_test_tree();
-        let r = find_files(dir.path().to_str().unwrap(), None, Some("file"), None, None, None, None).await.unwrap();
+        let r = find_files(
+            dir.path().to_str().unwrap(),
+            None,
+            Some("file"),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
         assert!(r.entries.iter().all(|e| e.entry_type == "file"));
     }
 
     #[tokio::test]
     async fn find_by_type_dir() {
         let dir = create_test_tree();
-        let r = find_files(dir.path().to_str().unwrap(), None, Some("directory"), None, None, None, None).await.unwrap();
+        let r = find_files(
+            dir.path().to_str().unwrap(),
+            None,
+            Some("directory"),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
         assert!(r.entries.iter().all(|e| e.entry_type == "directory"));
         assert!(r.count >= 3); // src, src/nested, docs
     }
@@ -304,14 +384,34 @@ mod tests {
     #[tokio::test]
     async fn find_max_depth() {
         let dir = create_test_tree();
-        let r = find_files(dir.path().to_str().unwrap(), None, None, Some(0), None, None, None).await.unwrap();
+        let r = find_files(
+            dir.path().to_str().unwrap(),
+            None,
+            None,
+            Some(0),
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
         assert!(r.entries.iter().all(|e| e.depth == 0));
     }
 
     #[tokio::test]
     async fn find_min_size() {
         let dir = create_test_tree();
-        let r = find_files(dir.path().to_str().unwrap(), None, Some("file"), None, Some(5000), None, None).await.unwrap();
+        let r = find_files(
+            dir.path().to_str().unwrap(),
+            None,
+            Some("file"),
+            None,
+            Some(5000),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
         assert_eq!(r.count, 1);
         assert!(r.entries[0].name == "big.dat");
     }
@@ -319,7 +419,17 @@ mod tests {
     #[tokio::test]
     async fn find_limit() {
         let dir = create_test_tree();
-        let r = find_files(dir.path().to_str().unwrap(), None, None, None, None, None, Some(3)).await.unwrap();
+        let r = find_files(
+            dir.path().to_str().unwrap(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(3),
+        )
+        .await
+        .unwrap();
         assert_eq!(r.count, 3);
         assert!(r.truncated);
     }
@@ -333,7 +443,17 @@ mod tests {
     #[tokio::test]
     async fn find_results_sorted() {
         let dir = create_test_tree();
-        let r = find_files(dir.path().to_str().unwrap(), None, None, None, None, None, None).await.unwrap();
+        let r = find_files(
+            dir.path().to_str().unwrap(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
         let paths: Vec<&str> = r.entries.iter().map(|e| e.path.as_str()).collect();
         let mut sorted = paths.clone();
         sorted.sort();

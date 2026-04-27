@@ -94,7 +94,11 @@ pub async fn execute_batch(
                     error: Some(format!(
                         "tool '{}' is not registered. Registered tools: {}",
                         op.tool,
-                        registered.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
+                        registered
+                            .iter()
+                            .map(|s| s.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
                     )),
                     duration_ms: 0,
                 }
@@ -165,7 +169,11 @@ mod tests {
         let result = execute_batch(ops, &table, 4, 30).await;
         assert!(result.results[0].success);
         assert!(!result.results[1].success);
-        assert!(result.results[1].error.as_ref().unwrap().contains("not registered"));
+        assert!(result.results[1]
+            .error
+            .as_ref()
+            .unwrap()
+            .contains("not registered"));
     }
 
     #[tokio::test]

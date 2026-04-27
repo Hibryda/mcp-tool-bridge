@@ -54,17 +54,13 @@ pub struct GitError {
 }
 
 /// Run git status and parse into structured output.
-pub async fn git_status(
-    path: &str,
-    show_untracked: bool,
-) -> Result<GitStatusResult, GitError> {
+pub async fn git_status(path: &str, show_untracked: bool) -> Result<GitStatusResult, GitError> {
     // Canonicalize path
-    let canonical = std::fs::canonicalize(path)
-        .map_err(|e| GitError {
-            code: "PATH_ERROR".into(),
-            message: format!("cannot resolve path: {e}"),
-            raw_stderr: None,
-        })?;
+    let canonical = std::fs::canonicalize(path).map_err(|e| GitError {
+        code: "PATH_ERROR".into(),
+        message: format!("cannot resolve path: {e}"),
+        raw_stderr: None,
+    })?;
     let path_str = canonical.to_string_lossy();
 
     // Check git version
@@ -74,9 +70,12 @@ pub async fn git_status(
 
     let output = tokio::process::Command::new("git")
         .args([
-            "-c", "i18n.logOutputEncoding=UTF-8",
-            "-c", "core.quotePath=false",
-            "-C", &path_str,
+            "-c",
+            "i18n.logOutputEncoding=UTF-8",
+            "-c",
+            "core.quotePath=false",
+            "-C",
+            &path_str,
             "status",
             "--porcelain=v2",
             "--branch",
@@ -118,10 +117,15 @@ fn parse_porcelain_v2(output: &str) -> Result<GitStatusResult, GitError> {
         if line.starts_with("# branch.oid") {
             // Skip — we use head from branch.head
         } else if line.starts_with("# branch.head") {
-            branch.head = line.strip_prefix("# branch.head ").unwrap_or("").to_string();
+            branch.head = line
+                .strip_prefix("# branch.head ")
+                .unwrap_or("")
+                .to_string();
         } else if line.starts_with("# branch.upstream") {
             branch.upstream = Some(
-                line.strip_prefix("# branch.upstream ").unwrap_or("").to_string(),
+                line.strip_prefix("# branch.upstream ")
+                    .unwrap_or("")
+                    .to_string(),
             );
         } else if line.starts_with("# branch.ab") {
             if let Some(ab) = line.strip_prefix("# branch.ab ") {
@@ -343,8 +347,14 @@ mod tests {
 
     #[test]
     fn error_classification() {
-        assert_eq!(classify_git_error("fatal: not a git repository"), "NOT_A_REPO");
-        assert_eq!(classify_git_error("error: permission denied"), "PERMISSION_DENIED");
+        assert_eq!(
+            classify_git_error("fatal: not a git repository"),
+            "NOT_A_REPO"
+        );
+        assert_eq!(
+            classify_git_error("error: permission denied"),
+            "PERMISSION_DENIED"
+        );
         assert_eq!(classify_git_error("something else"), "UNKNOWN");
     }
 }

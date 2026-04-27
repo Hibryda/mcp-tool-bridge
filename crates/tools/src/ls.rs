@@ -38,17 +38,14 @@ pub async fn list_directory(
         };
 
         let modified = if long {
-            metadata
-                .modified()
-                .ok()
-                .and_then(|t| {
-                    t.duration_since(UNIX_EPOCH).ok().map(|d| {
-                        let secs = d.as_secs() as i64;
-                        let dt = chrono::DateTime::from_timestamp(secs, 0);
-                        dt.map(|d| d.to_rfc3339())
-                            .unwrap_or_else(|| secs.to_string())
-                    })
+            metadata.modified().ok().and_then(|t| {
+                t.duration_since(UNIX_EPOCH).ok().map(|d| {
+                    let secs = d.as_secs() as i64;
+                    let dt = chrono::DateTime::from_timestamp(secs, 0);
+                    dt.map(|d| d.to_rfc3339())
+                        .unwrap_or_else(|| secs.to_string())
                 })
+            })
         } else {
             None
         };
@@ -88,8 +85,12 @@ mod tests {
         std::fs::write(dir.join("visible.txt"), "").unwrap();
         std::fs::write(dir.join(".hidden"), "").unwrap();
 
-        let without_hidden = list_directory(dir.to_str().unwrap(), false, false).await.unwrap();
-        let with_hidden = list_directory(dir.to_str().unwrap(), true, false).await.unwrap();
+        let without_hidden = list_directory(dir.to_str().unwrap(), false, false)
+            .await
+            .unwrap();
+        let with_hidden = list_directory(dir.to_str().unwrap(), true, false)
+            .await
+            .unwrap();
 
         assert!(without_hidden.iter().all(|e| !e.name.starts_with('.')));
         assert!(with_hidden.iter().any(|e| e.name == ".hidden"));
@@ -105,7 +106,9 @@ mod tests {
         std::fs::write(dir.join("alpha.txt"), "").unwrap();
         std::fs::write(dir.join("middle.txt"), "").unwrap();
 
-        let entries = list_directory(dir.to_str().unwrap(), false, false).await.unwrap();
+        let entries = list_directory(dir.to_str().unwrap(), false, false)
+            .await
+            .unwrap();
         let names: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
         assert_eq!(names, vec!["alpha.txt", "middle.txt", "zebra.txt"]);
 

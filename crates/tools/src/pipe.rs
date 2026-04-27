@@ -7,7 +7,12 @@ use std::collections::HashMap;
 
 /// Allowed source tools that produce filterable array output.
 const SOURCE_WHITELIST: &[&str] = &[
-    "find", "ls", "lsof", "kubectl_list", "docker_list", "docker_images",
+    "find",
+    "ls",
+    "lsof",
+    "kubectl_list",
+    "docker_list",
+    "docker_images",
 ];
 
 /// A single filter condition.
@@ -67,11 +72,12 @@ pub async fn execute_pipe(
     }
 
     // Get the dispatch function
-    let func = dispatch.get(&request.source.tool)
-        .ok_or_else(|| format!(
+    let func = dispatch.get(&request.source.tool).ok_or_else(|| {
+        format!(
             "tool '{}' is not registered in this server instance",
             request.source.tool
-        ))?;
+        )
+    })?;
 
     // Run source tool
     let source_result = func(request.source.params).await?;
@@ -92,10 +98,9 @@ pub async fn execute_pipe(
     }
 
     // Apply filters (AND semantics)
-    let filtered: Vec<Value> = items.into_iter()
-        .filter(|item| {
-            request.filters.iter().all(|f| matches_filter(item, f))
-        })
+    let filtered: Vec<Value> = items
+        .into_iter()
+        .filter(|item| request.filters.iter().all(|f| matches_filter(item, f)))
         .collect();
 
     let total_after = filtered.len() as u64;
@@ -121,34 +126,39 @@ fn extract_array(value: &Value, tool: &str) -> Result<Vec<Value>, String> {
     match tool {
         "ls" => {
             // ls returns a plain array
-            value.as_array()
+            value
+                .as_array()
                 .cloned()
                 .ok_or_else(|| "ls output is not an array".to_string())
         }
         "find" => {
             // find returns {entries: [...]}
-            value.get("entries")
+            value
+                .get("entries")
                 .and_then(|v| v.as_array())
                 .cloned()
                 .ok_or_else(|| "find output has no 'entries' array".to_string())
         }
         "lsof" => {
             // lsof returns {processes: [...]}
-            value.get("processes")
+            value
+                .get("processes")
                 .and_then(|v| v.as_array())
                 .cloned()
                 .ok_or_else(|| "lsof output has no 'processes' array".to_string())
         }
         "kubectl_list" => {
             // kubectl_list returns {items: [...]}
-            value.get("items")
+            value
+                .get("items")
                 .and_then(|v| v.as_array())
                 .cloned()
                 .ok_or_else(|| "kubectl_list output has no 'items' array".to_string())
         }
         "docker_list" | "docker_images" => {
             // docker returns {items: [...]}
-            value.get("items")
+            value
+                .get("items")
                 .and_then(|v| v.as_array())
                 .cloned()
                 .ok_or_else(|| format!("{tool} output has no 'items' array"))
@@ -220,16 +230,28 @@ mod tests {
     #[test]
     fn filter_equals() {
         let item = serde_json::json!({"type": "file"});
-        let f = Filter { field: "type".to_string(), pattern: "file".to_string(), mode: FilterMode::Equals };
+        let f = Filter {
+            field: "type".to_string(),
+            pattern: "file".to_string(),
+            mode: FilterMode::Equals,
+        };
         assert!(matches_filter(&item, &f));
-        let f2 = Filter { field: "type".to_string(), pattern: "dir".to_string(), mode: FilterMode::Equals };
+        let f2 = Filter {
+            field: "type".to_string(),
+            pattern: "dir".to_string(),
+            mode: FilterMode::Equals,
+        };
         assert!(!matches_filter(&item, &f2));
     }
 
     #[test]
     fn filter_starts_with() {
         let item = serde_json::json!({"status": "CrashLoopBackOff"});
-        let f = Filter { field: "status".to_string(), pattern: "Crash".to_string(), mode: FilterMode::StartsWith };
+        let f = Filter {
+            field: "status".to_string(),
+            pattern: "Crash".to_string(),
+            mode: FilterMode::StartsWith,
+        };
         assert!(matches_filter(&item, &f));
     }
 
@@ -241,10 +263,19 @@ mod tests {
             serde_json::json!({"name": "c", "type": "directory"}),
         ];
         let filters = vec![
-            Filter { field: "type".to_string(), pattern: "file".to_string(), mode: FilterMode::Equals },
-            Filter { field: "name".to_string(), pattern: ".rs".to_string(), mode: FilterMode::Contains },
+            Filter {
+                field: "type".to_string(),
+                pattern: "file".to_string(),
+                mode: FilterMode::Equals,
+            },
+            Filter {
+                field: "name".to_string(),
+                pattern: ".rs".to_string(),
+                mode: FilterMode::Contains,
+            },
         ];
-        let result: Vec<_> = items.into_iter()
+        let result: Vec<_> = items
+            .into_iter()
             .filter(|item| filters.iter().all(|f| matches_filter(item, f)))
             .collect();
         assert_eq!(result.len(), 1);
@@ -254,7 +285,11 @@ mod tests {
     #[test]
     fn nested_field_access() {
         let item = serde_json::json!({"metadata": {"name": "nginx", "namespace": "default"}});
-        let f = Filter { field: "metadata.name".to_string(), pattern: "nginx".to_string(), mode: FilterMode::Equals };
+        let f = Filter {
+            field: "metadata.name".to_string(),
+            pattern: "nginx".to_string(),
+            mode: FilterMode::Equals,
+        };
         assert!(matches_filter(&item, &f));
     }
 
