@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Hibryda/mcp-tool-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/Hibryda/mcp-tool-bridge/actions/workflows/ci.yml)
 
-MCP server wrapping CLI tools with structured JSON output. 20 tools, single Rust binary (~10MB), stdio transport. 103 unit tests + 1740 integration tests.
+MCP server wrapping CLI tools with structured JSON output. 20 tools, single Rust binary (~10MB), stdio transport. 103 unit + 5 doc + 187 e2e tests across ubuntu+macos.
 
 ## Before / After
 

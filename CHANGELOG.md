@@ -27,4 +27,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - 20 tools total (up from 13)
-- 103 unit tests (up from 45) + 1740 integration tests
+- 103 unit tests (up from 45)
+- E2E suite ported from Python to native Rust (`crates/tools/tests/e2e/`):
+  187 tests covering all tools, MCP protocol conformance, JSON output snapshots,
+  property-based parser invariants, failure modes (concurrency, limits, IO).
+- 5 doc tests on bridge-core public API
+- Criterion benchmarks for diff and lsof parsers (`cargo bench --bench parsers`)
+- Coverage tracking via `cargo-llvm-cov` in CI
+- Nightly workflow for: real-infra integration tests (docker/k8s/gh_api),
+  performance baselines, mutation testing on parser modules

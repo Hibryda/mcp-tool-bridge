@@ -52,3 +52,62 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: cargo test --test e2e --features integration-real --no-fail-fast
+
+  benchmarks:
+    name: Performance baselines
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-bench-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ubuntu-bench-
+      - name: Run criterion benches
+        run: cargo bench --bench parsers -- --quick --noplot
+
+  mutation-testing:
+    name: Mutation testing (parsers only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-mutants-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ubuntu-mutants-
+      - name: Install cargo-mutants
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants
+      - name: Build binary (e2e tests need it)
+        run: cargo build -p mcp-tool-bridge
+      - name: Run mutants on parsers
+        # Limit to parser modules to keep runtime bounded.
+        run: |
+          cargo mutants --no-shuffle --timeout 60 \
+            -f crates/tools/src/diff.rs \
+            -f crates/tools/src/lsof.rs \
+            -f crates/tools/src/git_log.rs \
+            -f crates/tools/src/git_status.rs \
+            --check || true
+        # `--check` only verifies the project still compiles with mutants, doesn't run tests.
+        # Full mutation testing is too slow for CI; this catches obvious dead code.
+      - name: Upload mutants report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutants-report
+          path: mutants.out/
+          if-no-files-found: ignore

@@ -58,6 +58,34 @@ jobs:
       - name: E2E tests (default features — no real infra)
         run: cargo test --test e2e --no-fail-fast
 
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-coverage-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ubuntu-coverage-
+      - name: Install lsof
+        run: sudo apt-get install -y lsof
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Build binary
+        run: cargo build -p mcp-tool-bridge
+      - name: Generate coverage
+        run: cargo llvm-cov --workspace --lcov --output-path lcov.info --tests --no-fail-fast
+      - name: Coverage summary
+        run: cargo llvm-cov report --summary-only
+
   build-release:
     name: Release build
     needs: test

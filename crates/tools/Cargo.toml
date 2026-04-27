@@ -26,6 +26,11 @@ tempfile = "3"
 mockito = "1"
 insta = { version = "1", features = ["json"] }
 proptest = "1"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "parsers"
+harness = false
 
 [features]
 default = []
