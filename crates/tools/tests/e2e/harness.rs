@@ -133,6 +133,21 @@ pub struct ToolResponse {
 
 impl ToolResponse {
     fn from_message(msg: Value) -> Self {
+        // A JSON-RPC error response (no `result`, has `error`) means the call failed
+        // at the protocol level — e.g. param deserialization. Treat this as is_error=true
+        // so tests don't silently pass when the server rejected the request.
+        if msg.get("result").is_none() {
+            if let Some(err) = msg.get("error") {
+                let content_text = err["message"].as_str().unwrap_or("rpc error").to_string();
+                let data = err.clone();
+                return ToolResponse {
+                    is_error: true,
+                    content_text,
+                    data,
+                };
+            }
+        }
+
         let result = &msg["result"];
         let is_error = result["isError"].as_bool().unwrap_or(false);
         let content_text = result["content"]

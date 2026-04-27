@@ -7,6 +7,7 @@ mod harness;
 mod batch_tests;
 mod curl_tests;
 mod diff_tests;
+mod failure_mode_tests;
 mod find_tests;
 mod git_tests;
 mod ls_tests;
