@@ -2,5 +2,6 @@
 members = [
     "crates/bridge-core",
     "crates/tools",
+    "crates/hook",
 ]
 resolver = "2"

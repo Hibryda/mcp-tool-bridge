@@ -1,0 +1,300 @@
+find /home/hibryda/code/claude/plugins/quanta-plugin -type f -name "*.json" -o -name "*.md" -o -name "*.js" -o -name "*.ts" | head -50
+tree -L 4 /home/hibryda/code/claude/plugins/quanta-plugin --charset ascii 2>/dev/null | head -100
+find /home/hibryda/code/claude/plugins/quanta-plugin -type d | sort
+ls -la /home/hibryda/code/claude/plugins/quanta-plugin/ | grep -v "^d" | awk '{print $NF}' && echo "--- DIRECTORIES ---" && ls -d /home/hibryda/code/claude/plugins/quanta-plugin/*/ 2>/dev/null | sed 's|.*/||; s|/$||'
+find /home/hibryda/code/claude/plugins/quanta-plugin/skills -type f -name "SKILL.md" -o -name "*.py" -o -name "*.ts" -o -name "*.js" | head -30
+ls -la /home/hibryda/code/claude/plugins/quanta-plugin/skills/ | grep "^d" | awk '{print $NF}'
+ls -la /home/hibryda/code/claude/plugins/quanta-plugin/hooks/
+ls -la /home/hibryda/code/claude/plugins/quanta-plugin/servers/ && echo "---" && ls -la /home/hibryda/code/claude/plugins/quanta-plugin/scripts/
+ls -la /home/hibryda/code/claude/plugins/quanta-plugin/skills/ | head -20
+find /home/hibryda/code/claude/plugins/quanta-plugin/skills -name "SKILL.md" -o -name "index.ts" -o -name "main.py" -o -name "run.sh" | head -20
+ls -la /home/hibryda/code/claude/plugins/quanta-plugin/skills/context-generator/
+ls -la /home/hibryda/code/claude/plugins/quanta-plugin/skills/humanizer/
+ls -la /home/hibryda/code/claude/plugins/quanta-plugin/agents/
+ls -la /home/hibryda/code/claude/plugins/quanta-plugin/skills/_claude-shared/
+ls -la /home/hibryda/code/claude/plugins/quanta-plugin/skills/session-wrap/
+ls -la /home/hibryda/code/claude/plugins/quanta-plugin/skills/_claude-shared/tribunal-orchestrator/src/ | head -20
+grep -r "memora" /home/hibryda/code/claude/plugins/quanta-plugin --include="*.md" --include="*.py" --include="*.ts" -l | head -20
+ls -la
+ls ../semantic-gans/ 2>/dev/null || echo "NOT FOUND"
+ls docs/references/ 2>/dev/null || echo "NO REFERENCES DIR"
+ls ../semantic-gans/automata/ ../semantic-gans/gan/ ../semantic-gans/semantic/ ../semantic-gans/repos/ 2>/dev/null
+ls ../semantic-gans/maps/ 2>/dev/null | head -30
+ls ../semantic-gans/maps/fastapi_graph* ../semantic-gans/maps/django_graph* ../semantic-gans/maps/flask_graph* ../semantic-gans/maps/baseline_degree_ratio.json 2>/dev/null
+python3 -c "import json; d=json.load(open('../semantic-gans/maps/fastapi_graph.json')); print(type(d)); print(list(d.keys())); print('nodes type:', type(d['nodes'])); print('n_nodes:', len(d['nodes']) if isinstance(d['nodes'], (list,dict)) else 'N/A'); print('n_edges:', len(d.get('edges', [])))" 2>&1
+ls ../semantic-gans/repos/fastapi/ 2>/dev/null | head -5 && echo "---" && ls ../semantic-gans/repos/django/ 2>/dev/null | head -5
+python3 --version && python3 -c "import networkx; import numpy; import scipy; print('deps ok')" 2>&1
+python3 -c "import anthropic; print('anthropic sdk ok')" 2>&1
+mkdir -p src data/results
+python3 run_experiment.py --codebases fastapi --rounds 3 --per-round 10 2>&1
+echo "${ANTHROPIC_API_KEY:+set}" && ls ~/.env 2>/dev/null; env | grep -i ANTHROPIC 2>/dev/null | head -3
+ls ../.env ../semantic-gans/.env .env 2>/dev/null; cat ../.env 2>/dev/null | grep ANTHROPIC | head -1; cat ../semantic-gans/.env 2>/dev/null | grep ANTHROPIC | head -1
+ln -s ../semantic-gans/.env .env 2>/dev/null || cp ../semantic-gans/.env .env
+python3 run_experiment.py --codebases django --rounds 3 --per-round 10 2>&1
+python3 run_experiment.py --codebases flask --rounds 3 --per-round 10 2>&1
+python3 "/home/hibryda/.config/claude/plugins/marketplaces/quanta/skills/session-wrap/../_claude-shared/session-scanner.py" "$(pwd)"
+git status --short && echo "---" && git log --oneline -5
+python3 run_extended.py 2>&1
+grep -qxF '.tribunal/' .gitignore 2>/dev/null || echo '.tribunal/' >> .gitignore
+cd /home/hibryda/.config/claude/plugins/marketplaces/quanta/skills/supertribunal/../_claude-shared/tribunal-orchestrator && [ -d node_modules ] || npm install --silent
+ls /home/hibryda/code/vioxen/multi/aux/daemon-factory/
+find /home/hibryda/code/vioxen/multi/aux/daemon-factory/ -type f -name "*.md" -o -name "*.yaml" -o -name "*.yml" -o -name "*.toml" -o -name "*.tera" -o -name "*.sh" | head -80
+ls /home/hibryda/code/vioxen/multi/aux/daemon-factory/templates/
+ls /home/hibryda/code/vioxen/multi/aux/daemon-factory/golden/
+ls /home/hibryda/code/vioxen/multi/aux/daemon-factory/scripts/
+ls /home/hibryda/code/vioxen/multi/aux/governors-daemons/forge/daemons/providers/ 2>/dev/null || echo "submodule not checked out"
+ls /home/hibryda/code/vioxen/multi/aux/governors-daemons/forge/daemons/providers/social-tiktok/src/
+wc -l /home/hibryda/code/vioxen/multi/aux/governors-daemons/forge/daemons/providers/social-tiktok/src/*.rs /home/hibryda/code/vioxen/multi/aux/governors-daemons/forge/daemons/providers/social-tiktok/src/**/*.rs 2>/dev/null
+find /home/hibryda/code/vioxen/multi/aux/governors-daemons/forge -name Dockerfile | wc -l
+head -5 /home/hibryda/code/vioxen/multi/aux/governors-daemons/forge/daemons/providers/social-tiktok/src/api/client.rs
+grep -n "social.tiktok\|SocialTiktok\|SOCIAL.TKTOK" /home/hibryda/code/vioxen/multi/aux/governors-daemons/forge/common/core/src/entity.rs 2>/dev/null | head -20
+grep "social-tiktok" /home/hibryda/code/vioxen/multi/aux/governors-daemons/forge/daemons/providers/anthropic/Dockerfile 2>/dev/null | head -3
+wc -l /home/hibryda/code/vioxen/multi/aux/daemon-factory/templates/*.tera /home/hibryda/code/vioxen/multi/aux/daemon-factory/templates/nestjs/*.tera /home/hibryda/code/vioxen/multi/aux/daemon-factory/templates/vue/*.tera /home/hibryda/code/vioxen/multi/aux/daemon-factory/templates/helm/*.tera
+find /home/hibryda/code/vioxen/multi/aux/governors-daemons -name "generate-dockerfiles*" -o -name "gen-docker*" 2>/dev/null | head -5
+find /home/hibryda/code/vioxen/multi/aux/governors-daemons -name "*.sh" | head -20
+ls /home/hibryda/code/vioxen/multi/aux/daemon-factory/golden/nestjs/
+ls /home/hibryda/code/vioxen/multi/aux/daemon-factory/golden/vue/
+cd /home/hibryda/code/ai/agent-orchestrator/v2 && cargo test -p bterminal-core sandbox 2>&1
+cd /home/hibryda/code/ai/agent-orchestrator/v2 && cargo test -p bterminal-core --lib sandbox::tests 2>&1 | tail -30
+cd /home/hibryda/code/ai/agent-orchestrator/v2 && cargo test -p bterminal-core --lib sandbox::tests 2>&1 | tail -20
+cd /home/hibryda/code/ai/agent-orchestrator/v2 && cargo test -p bterminal-core sandbox 2>&1 | tail -25
+cd /home/hibryda/code/ai/agent-orchestrator/v2 && cargo check -p bterminal-core 2>&1 | tail -5
+cd /home/hibryda/code/ai/agent-orchestrator/v2 && npx tsc --noEmit --pretty 2>&1 | head -40
+cd /home/hibryda/code/ai/agent-orchestrator/v2 && npx svelte-check 2>&1 | tail -30
+git status
+git diff --stat
+git log --oneline -10
+git branch --show-current
+git diff widget/src-tauri/src/lib.rs
+wc -l /home/hibryda/code/vioxen/devs-monitor/docs/*.md
+wc -l /home/hibryda/code/vioxen/devs-monitor/CLAUDE.md /home/hibryda/code/vioxen/devs-monitor/.claude/CLAUDE.md
+wc -l /home/hibryda/code/vioxen/devs-monitor/CLAUDE.md /home/hibryda/code/vioxen/devs-monitor/.claude/CLAUDE.md /home/hibryda/code/vioxen/devs-monitor/docs/*.md
+git status && echo "---DIFF---" && git diff --stat
+git add widget/src-tauri/src/lib.rs && git diff --cached --stat
+git add docs/architecture.md docs/configuration.md CHANGELOG.md README.md CLAUDE.md .claude/CLAUDE.md && git diff --cached --stat
+rm /tmp/session-wrap-ckpt-a25f3ae6.json
+git status && echo "---DIFF STAT---" && git diff --stat && echo "---LOG---" && git log --oneline -10
+git diff --cached --stat
+git diff v2/src-tauri/src/sidecar.rs
+git diff v2/src-tauri/src/session.rs
+git diff v2/src-tauri/src/lib.rs
+git diff v2/src-tauri/tauri.conf.json
+git diff v2/src/lib/components/Sidebar/SessionList.svelte
+git diff v2/src/lib/adapters/session-bridge.ts v2/src/lib/stores/layout.svelte.ts v2/src/lib/adapters/sdk-messages.test.ts
+ls -la v2/src/lib/adapters/agent-bridge.test.ts v2/src/lib/agent-dispatcher.test.ts v2/src/lib/stores/layout.test.ts v2/tests/ 2>/dev/null; wc -l v2/src/lib/adapters/agent-bridge.test.ts v2/src/lib/agent-dispatcher.test.ts v2/src/lib/stores/layout.test.ts 2>/dev/null
+ls -la v2/tests/e2e/
+wc -l /home/hibryda/code/ai/BTerminal/CLAUDE.md /home/hibryda/code/ai/BTerminal/.claude/CLAUDE.md
+wc -l /home/hibryda/code/ai/BTerminal/docs/*.md
+git status && echo "---" && git diff --stat
+git add v2/src-tauri/src/session.rs v2/src-tauri/src/lib.rs v2/src/lib/adapters/session-bridge.ts v2/src/lib/stores/layout.svelte.ts v2/src/lib/components/Sidebar/SessionList.svelte && git diff --cached --stat
+git add v2/src-tauri/src/sidecar.rs v2/src-tauri/tauri.conf.json && git diff --cached --stat
+git add v2/src/lib/adapters/agent-bridge.test.ts v2/src/lib/agent-dispatcher.test.ts v2/src/lib/stores/layout.test.ts v2/src/lib/adapters/sdk-messages.test.ts v2/tests/e2e/README.md && git diff --cached --stat
+git add CLAUDE.md .claude/CLAUDE.md README.md TODO.md CHANGELOG.md docs/phases.md docs/progress.md docs/task_plan.md && git diff --cached --stat
+rm /tmp/session-wrap-ckpt-ecc77191.json
+git log --oneline -20
+grep -r "adaptive_atr\|pool_health\|reconcil\|audit_trail\|caddy" --include="*.rs" --include="*.toml" --include="*.yml" -l 2>/dev/null | head -20
+ls -1 /home/hibryda/code/private/solana-bot/crates/engine/src/actors/intelligence/
+grep -n "reconcil" /home/hibryda/code/private/solana-bot/crates/engine/src/main.rs
+grep -n "METRICS\|histogram\|counter\|gauge" /home/hibryda/code/private/solana-bot/crates/engine/src/metrics.rs 2>/dev/null | head -40
+grep -rn "bearer\|token\|auth\|CORS\|Access-Control" /home/hibryda/code/private/solana-bot/crates/dashboard-api/src/main.rs 2>/dev/null | head -20
+grep -n "pub const" /home/hibryda/code/private/solana-bot/crates/engine/src/metrics.rs | tail -20
+grep -rn "bearer\|BearerToken\|Authorization\|X-API-Key\|CORS" /home/hibryda/code/private/solana-bot/crates/dashboard-api/src/ --include="*.rs" | head -30
+grep -rn "adaptive_atr_multiplier\|pool_health" /home/hibryda/code/private/solana-bot/crates/engine/src/actors/trading/position_tracker.rs
+grep -rn "get_pool_health\|recency.*weight" /home/hibryda/code/private/solana-bot/crates/storage/src/
+grep -n "pub const\|pub fn\|pub async fn" /home/hibryda/code/private/solana-bot/crates/engine/src/metrics.rs
+grep -rn "const\|static" /home/hibryda/code/private/solana-bot/crates/engine/src/metrics.rs | wc -l
+find /home/hibryda/code/private/solana-bot -name "*.rs" -exec grep -l "signal_audit\|audit_trail\|two.phase\|queued\|update_signal_log_outcome" {} \;
+ls -la /home/hibryda/code/private/solana-bot/deploy/nas/ | grep -v "^total"
+grep -n "/api/intelligence\|intelligence_\|effectiveness" /home/hibryda/code/private/solana-bot/crates/dashboard-api/src/routes/mod.rs | head -20
+find /home/hibryda/code/private/solana-bot -name "*.rs" -exec grep -l "sentiment\|llm_score\|regime" {} \; | head -15
+grep -n "insert_signal_log\|update_signal_log_outcome\|two.phase\|audit\|queued\|outcome" /home/hibryda/code/private/solana-bot/crates/storage/src/pg.rs | head -30
+grep -n "pub async fn\|// " /home/hibryda/code/private/solana-bot/crates/engine/src/actors/trading/executor.rs | head -40
+git submodule status aux/devs-monitor aux/qa core/server/quanta-lab-server
+echo '{"completed": [], "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /tmp/session-wrap-ckpt-50d1b6c3.json
+ls -la /home/hibryda/code/vioxen/multi/docs/
+ls -la /home/hibryda/code/vioxen/multi/docs/aux/ /home/hibryda/code/vioxen/multi/docs/core/
+wc -l /home/hibryda/code/vioxen/multi/CLAUDE.md /home/hibryda/code/vioxen/multi/.claude/CLAUDE.md
+echo '{"completed": ["gather"], "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /tmp/session-wrap-ckpt-50d1b6c3.json
+echo '{"completed": ["gather", "memora"], "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /tmp/session-wrap-ckpt-50d1b6c3.json
+echo '{"completed": ["gather", "memora", "docs", "claude-md", "meta"], "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /tmp/session-wrap-ckpt-50d1b6c3.json
+echo '{"completed": ["gather", "memora", "docs", "claude-md", "meta", "bloat"], "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /tmp/session-wrap-ckpt-50d1b6c3.json
+git add progress.md TODO.md CHANGELOG.md CLAUDE.md README.md
+rm /tmp/session-wrap-ckpt-50d1b6c3.json
+kubectl --context=do-fra1-vioxen-dev -n vault exec vault-0 -- vault status 2>&1
+kubectl --context=do-fra1-vioxen-dev -n vault-seal exec vault-seal-0 -- vault status 2>&1
+kubectl --context=do-fra1-vioxen-dev -n vault get pods -o wide 2>&1
+kubectl --context=do-fra1-vioxen-dev -n vault-seal get pods -o wide 2>&1
+kubectl --context=do-fra1-vioxen-prod-k8s -n vault exec vault-0 -- vault status 2>&1
+kubectl --context=do-fra1-vioxen-prod-k8s -n vault-seal get pods -o wide 2>&1
+ls /home/hibryda/code/vioxen/automations/gitops-platform/platform/vault/ 2>&1
+ls /home/hibryda/code/vioxen/automations/gitops-platform/platform/vault-seal/ 2>&1
+ls /home/hibryda/code/vioxen/automations/helm/vault/vault-setup/scripts/ 2>&1
+ls /home/hibryda/code/vioxen/automations/helm/ 2>&1
+ls ~/docs/people/vitaliy/quanta/keys/ 2>&1
+ls ~/docs/people/vitaliy/quanta/keys/seal-vault1/ ~/docs/people/vitaliy/quanta/keys/seal-vault2/ 2>&1
+ls /home/hibryda/code/vioxen/automations/helm/vault/vault-setup/scripts/lib/ 2>&1
+ls /home/hibryda/code/vioxen/automations/helm/vault/vault-setup/policies/ 2>&1
+ls /home/hibryda/code/vioxen/automations/helm/vault/ 2>&1
+kubectl --context=do-fra1-vioxen-dev -n vault get pods -o wide 2>&1 && echo "---" && kubectl --context=do-fra1-vioxen-prod-k8s -n vault get pods -o wide 2>&1
+ls /home/hibryda/code/vioxen/automations/docs/ 2>&1
+ls /home/hibryda/code/vioxen/automations/gitops-platform/apps/ 2>&1 | head -30
+find /home/hibryda/code/vioxen/automations/gitops-platform -name '*.yaml' -path '*seal*' 2>/dev/null | head -20
+cat ~/docs/people/vitaliy/quanta/keys/vault-2.sh 2>&1
+cat ~/docs/people/vitaliy/quanta/keys/vault-prod-2.sh 2>&1
+cat ~/docs/people/vitaliy/quanta/keys/prod-init.sh 2>&1
+cat ~/docs/people/vitaliy/quanta/keys/set_kube_admin.sh 2>&1
+cat ~/docs/people/vitaliy/quanta/keys/phrases.txt 2>&1 | head -5
+ls ~/docs/people/vitaliy/quanta/keys/prod-vault1/ ~/docs/people/vitaliy/quanta/keys/prod-vault2/ 2>&1
+kubectl --context=do-fra1-vioxen-dev -n vault exec vault-0 -- cat /vault/config/extraconfig-from-values.hcl 2>&1
+kubectl --context=do-fra1-vioxen-dev -n vault-seal exec vault-seal-0 -- vault read -format=json sys/mounts/transit 2>&1 | head -20
+kubectl --context=do-fra1-vioxen-dev -n argocd get app vault-seal -o yaml 2>&1 | head -60
+kubectl --context=do-fra1-vioxen-dev -n argocd get app | grep vault 2>&1
+kubectl --context=do-fra1-vioxen-prod-k8s -n argocd get app | grep vault 2>&1
+kubectl --context=do-fra1-vioxen-dev -n argocd get app vault-seal-dev -o yaml 2>&1 | head -60
+kubectl --context=do-fra1-vioxen-dev -n argocd get app vault-seal-prod -o yaml 2>&1 | head -60
+kubectl --context=do-fra1-vioxen-dev -n argocd get app | grep -i vault 2>&1
+kubectl --context=do-fra1-vioxen-dev -n argocd get app vault -o yaml 2>&1 | head -5
+kubectl --context=do-fra1-vioxen-dev -n vault get sts vault -o yaml 2>&1 | head -30
+kubectl --context=do-fra1-vioxen-dev -n vault get all 2>&1
+cd /home/hibryda/code/holoadvocate/services/core && npx vitest run src/modules/offboarding/cleanup.test.ts --reporter=dot 2>&1 | tail -30
+cd /home/hibryda/code/holoadvocate/services/core && npx vitest run src/shared/realtime/centrifugo-tokens.test.ts --reporter=dot 2>&1 | tail -15
+cd /home/hibryda/code/holoadvocate/services/core && npx tsc --noEmit --pretty false 2>&1 | head -30
+cd /home/hibryda/code/holoadvocate/services/core && npx tsc --noEmit --pretty false 2>&1 | grep -c 'routes.ts'
+cd /home/hibryda/code/holoadvocate/services/core && npx tsc --noEmit --pretty false 2>&1 | grep 'routes.ts'
+cd /home/hibryda/code/holoadvocate/services/core && npx tsc --noEmit --pretty false 2>&1 | grep -E 'cleanup\.ts|offboarding'
+cd /home/hibryda/code/holoadvocate/services/core && npx vitest run src/modules/offboarding/cleanup.test.ts --reporter=verbose 2>&1 | tail -40
+git diff services/core/src/modules/realtime/routes.ts services/core/src/modules/offboarding/cleanup.ts services/core/src/modules/offboarding/cleanup.test.ts services/core/src/modules/offboarding/types.ts --stat
+git diff --stat -- services/core/src/modules/realtime/routes.ts services/core/src/modules/offboarding/cleanup.ts services/core/src/modules/offboarding/cleanup.test.ts services/core/src/modules/offboarding/types.ts
+ls /home/hibryda/code/ai/bimodality-heterogeneity/.tribunal/tribunal-codex-report.md 2>/dev/null && echo EXISTS || echo NOT_EXISTS
+python3 "/home/hibryda/.config/claude/plugins/marketplaces/quanta/skills/_claude-shared/session-scanner.py" "$(pwd)"
+echo '{"completed": ["gather", "memora"], "timestamp": "'$(date -Iseconds)'"}' > /tmp/session-wrap-ckpt-9f2d597150c4.json
+ls /home/hibryda/code/ai/semantic-gans/ 2>/dev/null | head -20 || echo "NOT_FOUND"
+ls /home/hibryda/code/ai/semantic-gans/maps/*.json 2>/dev/null
+cd /home/hibryda/code/ai/bimodality-heterogeneity/src && python3 prewriting_tasks.py 2>&1
+source .venv/bin/activate && cd src && python3 prewriting_tasks.py 2>&1
+tail -50 /tmp/claude-1000/-home-hibryda-code-ai-bimodality-heterogeneity/8ef09455-bf6b-43e5-acf5-2a408a88b81a/tasks/a92a7a41ef9bdc92d.output 2>/dev/null | head -50
+grep -o '"text":"[^"]*"' /home/hibryda/.config/claude/projects/-home-hibryda-code-ai-bimodality-heterogeneity/8ef09455-bf6b-43e5-acf5-2a408a88b81a/tool-results/bvw2a4dgu.txt 2>/dev/null | tail -20
+grep -c '"type":"result"' /tmp/claude-1000/-home-hibryda-code-ai-bimodality-heterogeneity/8ef09455-bf6b-43e5-acf5-2a408a88b81a/tasks/a92a7a41ef9bdc92d.output 2>/dev/null; grep '"type":"result"' /tmp/claude-1000/-home-hibryda-code-ai-bimodality-heterogeneity/8ef09455-bf6b-43e5-acf5-2a408a88b81a/tasks/a92a7a41ef9bdc92d.output 2>/dev/null | tail -1 | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('message',{}).get('content',[{}])[-1].get('text','')[:500])" 2>/dev/null || echo "Still running or no result yet"
+wc -l /tmp/claude-1000/-home-hibryda-code-ai-bimodality-heterogeneity/8ef09455-bf6b-43e5-acf5-2a408a88b81a/tasks/a92a7a41ef9bdc92d.output 2>/dev/null; grep -c 'BLOCKING\|ADJACENT\|BACKGROUND' /tmp/claude-1000/-home-hibryda-code-ai-bimodality-heterogeneity/8ef09455-bf6b-43e5-acf5-2a408a88b81a/tasks/a92a7a41ef9bdc92d.output 2>/dev/null || echo "0 classifications found"
+source .venv/bin/activate && cd src && python3 prewriting_tasks.py 2>&1 | tail -30
+wc -l /home/hibryda/code/ai/agent-orchestrator/ui-electrobun/src/mainview/TerminalTabs.svelte /home/hibryda/code/ai/agent-orchestrator/ui-electrobun/src/mainview/Terminal.svelte /home/hibryda/code/ai/agent-orchestrator/ui-electrobun/src/mainview/project-state.svelte.ts /home/hibryda/code/ai/agent-orchestrator/ui-electrobun/src/mainview/project-state.types.ts /home/hibryda/code/ai/agent-orchestrator/ui-electrobun/src/mainview/app-state.svelte.ts
+npm view @anthropic-ai/claude-code-sdk 2>/dev/null | head -20; echo "---"; npm view @anthropic-ai/claude-agent-sdk 2>/dev/null | head -5
+npm install @anthropic-ai/claude-agent-sdk 2>&1 | tail -5
+npm install @anthropic-ai/claude-agent-sdk --legacy-peer-deps 2>&1 | tail -10
+ls node_modules/@anthropic-ai/claude-agent-sdk/dist/ 2>/dev/null | head -20; echo "---"; head -100 node_modules/@anthropic-ai/claude-agent-sdk/dist/index.d.ts 2>/dev/null || head -100 node_modules/@anthropic-ai/claude-agent-sdk/dist/index.js 2>/dev/null
+ls node_modules/@anthropic-ai/claude-agent-sdk/ 2>/dev/null; echo "---"; cat node_modules/@anthropic-ai/claude-agent-sdk/package.json 2>/dev/null | head -30
+cat node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts
+grep -n "export declare function query\|export declare interface QueryOptions\|export declare type QueryOptions\|export declare function.*query" node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts | head -20
+grep -n "export declare type Options\b\|export declare interface Options\b\|declare type Options " node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts | head -10
+grep -n "export declare.*class Query\|export declare type Query\|declare class Query" node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts | head -10
+grep -n "Query" node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts | head -20
+grep -n "SDKMessage\|SDKResultMessage\|SDKUserMessage" node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts | head -30
+grep -n "SDKResultSuccess\|SDKResultError" node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts | head -10
+grep -n "NonNullableUsage\|ModelUsage" node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts | head -10
+grep -n "systemPrompt" node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts | head -10
+grep -n "ANTHROPIC_API_KEY\|auth\|apiKey\|tokenSource\|apiKeySource" node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts | head -15
+npm uninstall @anthropic-ai/sdk 2>&1 | tail -5
+npm uninstall @anthropic-ai/sdk --legacy-peer-deps 2>&1 | tail -5
+npx tsc --noEmit 2>&1 | head -40
+npx vitest run 2>&1 | tail -30
+npx vitest run 2>&1
+sleep 15 && cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bxc9qyje7.output 2>/dev/null | tail -50
+UV_THREADPOOL_SIZE=4 npx vitest run --reporter=verbose 2>&1 | tail -40
+sleep 20 && cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/*.output 2>/dev/null | tail -30
+npx vitest run --pool=forks 2>&1 | tail -20
+npx vitest run --pool=forks 2>&1
+sleep 30 && cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bn7oip2bx.output 2>/dev/null | tail -40
+sleep 30 && wc -l /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bn7oip2bx.output 2>/dev/null && tail -20 /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bn7oip2bx.output 2>/dev/null
+grep -l "agent" test/*.test.ts 2>/dev/null; echo "---"; grep "import.*agent" test/*.test.ts 2>/dev/null
+pkill -f vitest 2>/dev/null; sleep 1; npx vitest run test/schemas.test.ts --pool=forks 2>&1
+npx vitest run test/schemas.test.ts 2>&1
+sleep 20 && cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bkfikm5ia.output 2>/dev/null | tail -30
+npx vitest run test/config.test.ts 2>&1
+npx vitest run test/context.test.ts 2>&1
+npx vitest run test/poc.test.ts 2>&1
+sleep 25 && echo "=== config ===" && tail -5 /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bfa07yl4o.output 2>/dev/null && echo "=== context ===" && tail -5 /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/b0ful45p7.output 2>/dev/null && echo "=== poc ===" && tail -5 /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/b2fyj2rem.output 2>/dev/null
+sleep 30 && echo "=== config ===" && tail -8 /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bfa07yl4o.output 2>/dev/null && echo "=== context ===" && tail -8 /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/b0ful45p7.output 2>/dev/null && echo "=== poc ===" && tail -8 /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/b2fyj2rem.output 2>/dev/null
+pkill -f vitest 2>/dev/null; sleep 2; npx vitest run test/config.test.ts 2>&1
+sleep 30 && cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/boyreo4fl.output 2>/dev/null | tail -10
+cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/boyreo4fl.output 2>/dev/null
+ls -la /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/boyreo4fl.output 2>/dev/null
+pkill -f vitest 2>/dev/null; pkill -f esbuild 2>/dev/null; sleep 2; node --max-old-space-size=512 node_modules/.bin/vitest run test/config.test.ts 2>&1
+sleep 15 && cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bv2xvdvlm.output 2>/dev/null | tail -15
+sleep 15 && wc -c /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bv2xvdvlm.output && cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bv2xvdvlm.output | tail -20
+pkill -f vitest 2>/dev/null; pkill -f esbuild 2>/dev/null; sleep 3; npx vitest run test/config.test.ts 2>&1
+sleep 5 && npx vitest run test/config.test.ts 2>&1
+npx tsx -e "import { callAnthropic, runAgent, parseAgentOutput, savePassOutput, createCostTracker, trackCost } from './src/agent.js'; console.log('All exports OK'); console.log('callAnthropic:', typeof callAnthropic); console.log('runAgent:', typeof runAgent); console.log('parseAgentOutput:', typeof parseAgentOutput);" 2>&1
+npx tsx -e "import { callAnthropic, runAgent, parseAgentOutput, savePassOutput, createCostTracker, trackCost } from './src/agent.ts'; console.log('All exports OK'); console.log('callAnthropic:', typeof callAnthropic); console.log('runAgent:', typeof runAgent); console.log('parseAgentOutput:', typeof parseAgentOutput);" 2>&1
+ulimit -u && ulimit -n && ps aux | wc -l
+pkill -f esbuild 2>/dev/null; sleep 2; npx vitest run test/config.test.ts 2>&1
+pgrep -a esbuild 2>/dev/null; pgrep -a vitest 2>/dev/null; pgrep -a node 2>/dev/null | head -10
+node -e "console.log('node works'); console.log(process.version);" 2>&1
+node -e "const esbuild = require('esbuild'); esbuild.transform('const x = 1', {loader: 'ts'}).then(r => console.log('esbuild OK:', r.code.trim()))" 2>&1
+node --experimental-strip-types -e "console.log('native TS works')" 2>&1
+git status --porcelain && echo "---" && git ls-files --others --exclude-standard
+echo -n "$(pwd)" | shasum | cut -c1-8
+ps aux --sort=-%mem | head -20
+pgrep -la esbuild; echo "---"; pgrep -la node; echo "---"; pgrep -la vitest; echo "---"; pgrep -la tsx
+ls -la /proc/1161208/fd 2>/dev/null | wc -l; echo "---"; cat /proc/1161208/status 2>/dev/null | grep -E "Threads|State|VmRSS"
+cat /proc/sys/kernel/threads-max; echo "---"; ls /proc/[0-9]*/task 2>/dev/null | wc -l; echo "---"; cat /proc/loadavg
+find /proc/[0-9]*/task -maxdepth 0 2>/dev/null | while read d; do pid=$(echo $d | cut -d/ -f3); count=$(ls $d 2>/dev/null | wc -l); if [ "$count" -gt 20 ]; then name=$(cat /proc/$pid/comm 2>/dev/null); echo "$count $pid $name"; fi; done | sort -rn | head -20
+cat /proc/self/cgroup 2>/dev/null; echo "---"; cat /sys/fs/cgroup/pids.max 2>/dev/null || echo "no cgroup pids.max"; echo "---"; cat /sys/fs/cgroup/pids.current 2>/dev/null || echo "no pids.current"; echo "---"; ulimit -a 2>/dev/null | grep -i proc
+cat /sys/fs/cgroup/user.slice/user-1000.slice/pids.max 2>/dev/null; echo "---"; cat /sys/fs/cgroup/user.slice/user-1000.slice/pids.current 2>/dev/null; echo "---"; cat /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/pids.max 2>/dev/null; echo "---"; cat /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/pids.current 2>/dev/null
+CGROUP=$(cat /proc/self/cgroup | cut -d: -f3); echo "Cgroup: $CGROUP"; cat "/sys/fs/cgroup${CGROUP}/pids.max" 2>/dev/null; echo "---"; cat "/sys/fs/cgroup${CGROUP}/pids.current" 2>/dev/null
+cat /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/app-org.chromium.Chromium-4680.scope/cgroup.procs 2>/dev/null | wc -l; echo "processes"; echo "---"; cat /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/app-org.chromium.Chromium-4680.scope/cgroup.procs 2>/dev/null | while read pid; do name=$(cat /proc/$pid/comm 2>/dev/null); echo "$pid $name"; done | awk '{print $2}' | sort | uniq -c | sort -rn | head -20
+kill 1161208 2>/dev/null; echo "Killed vitest PID 1161208"; sleep 1; cat /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/app-org.chromium.Chromium-4680.scope/pids.current 2>/dev/null
+cat /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/app-org.chromium.Chromium-4680.scope/pids.current 2>/dev/null; echo "/"; cat /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/app-org.chromium.Chromium-4680.scope/pids.max 2>/dev/null
+ls /tmp/nemezis-samples/solidity-app/src/Vault.sol 2>/dev/null && echo "Sample exists" || echo "Sample missing"
+npm run nemesis -- run /tmp/nemezis-samples/solidity-app --verbose --single-pass 2>&1
+cat /tmp/nemezis-samples/solidity-app/.audit/findings/recon-pass0.json 2>/dev/null
+rm -rf /tmp/nemezis-samples/solidity-app/.audit 2>/dev/null; NEMESIS_DEBUG=1 npm run nemesis -- run /tmp/nemezis-samples/solidity-app --verbose --single-pass 2>&1
+echo "ANTHROPIC_API_KEY set: $([ -n "$ANTHROPIC_API_KEY" ] && echo 'yes' || echo 'no')"; echo "CLAUDE_API_KEY set: $([ -n "$CLAUDE_API_KEY" ] && echo 'yes' || echo 'no')"
+sleep 30 && cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bpev34vdd.output 2>/dev/null | head -30
+wc -c /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bpev34vdd.output 2>/dev/null
+ls -la /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bpev34vdd.output 2>/dev/null || echo "file not found"
+ls /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/ 2>/dev/null
+sleep 30 && ls /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/ 2>/dev/null && cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/*.output 2>/dev/null | head -50
+cat /tmp/nemezis-samples/solidity-app/.audit/findings/recon-pass0.json 2>/dev/null || echo "No output yet"
+ls /tmp/nemezis-samples/solidity-app/.audit/findings/ 2>/dev/null
+cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/*.output 2>/dev/null | tail -30
+sleep 60 && ls /tmp/nemezis-samples/solidity-app/.audit/findings/ 2>/dev/null && echo "---" && cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/*.output 2>/dev/null | tail -30
+sleep 120 && ls /tmp/nemezis-samples/solidity-app/.audit/findings/ 2>/dev/null && echo "---" && cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/*.output 2>/dev/null | tail -30
+cat /tmp/nemezis-samples/solidity-app/.audit/findings/nemesis-verified.md 2>/dev/null
+cat /tmp/nemezis-samples/solidity-app/.audit/findings/feynman-pass1.json 2>/dev/null | head -5
+cat /tmp/nemezis-samples/solidity-app/.audit/findings/feynman-pass1.json 2>/dev/null
+cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/*.output 2>/dev/null
+rm -rf /tmp/nemezis-samples/solidity-app/.audit 2>/dev/null; NEMESIS_DEBUG=1 npm run nemesis -- run /tmp/nemezis-samples/solidity-app --verbose --single-pass 2>/tmp/nemesis-debug.log; echo "EXIT: $?"; tail -30 /tmp/nemesis-debug.log
+sleep 60 && cat /tmp/nemesis-debug.log 2>/dev/null | head -30
+ls -la /tmp/nemesis-debug.log 2>/dev/null; echo "---"; ls /tmp/nemezis-samples/solidity-app/.audit/findings/ 2>/dev/null
+cat /tmp/nemesis-debug.log 2>/dev/null
+sleep 120 && cat /tmp/nemesis-debug.log 2>/dev/null | tail -40
+rm -rf /tmp/nemezis-samples/solidity-app/.audit 2>/dev/null; NEMESIS_DEBUG=1 npm run nemesis -- run /tmp/nemezis-samples/solidity-app --verbose --single-pass 2>/tmp/nemesis-debug.log
+sleep 180 && cat /tmp/nemesis-debug.log 2>/dev/null | tail -20 && echo "=== STDOUT ===" && cat /tmp/claude-1000/-home-hibryda-code-claude-plugins-nemezis/tasks/bkfdwtsnl.output 2>/dev/null | tail -30
+ls -la /tmp/nemesis-debug.log 2>/dev/null; echo "---"; ls /tmp/nemezis-samples/solidity-app/.audit/findings/ 2>/dev/null; echo "---"; cat /tmp/nemesis-debug.log 2>/dev/null | tail -30
+sleep 120 && cat /tmp/nemesis-debug.log 2>/dev/null | tail -15 && echo "=== FINDINGS ===" && ls /tmp/nemezis-samples/solidity-app/.audit/findings/ 2>/dev/null
+npx tsc --noEmit 2>&1 && npx vitest run 2>&1
+find /home/hibryda/code/vioxen/multi/core/server/quanta-id-server/src -type f -name "*.ts" | head -20
+find /home/hibryda/code/vioxen/multi/core/server/quanta-id-server/src -type f -name "*.ts" ! -name "*.spec.ts" -exec grep -l "@Span" {} \;
+grep -r "@Span.*=>.*{" /home/hibryda/code/vioxen/multi/core/server/quanta-id-server/src --include="*.ts" ! -name "*.spec.ts" | head -50
+grep -r "@Span.*=>" /home/hibryda/code/vioxen/multi/core/server/quanta-id-server/src --include="*.ts" ! -name "*.spec.ts"
+find /home/hibryda/code/vioxen/multi/core/server/quanta-id-server/src -type f -name "*.ts" ! -name "*.spec.ts" -exec grep -H "@Span" {} \; | grep "=>" 
+find /home/hibryda/code/vioxen/multi/core/server/quanta-id-server/src -type f -name "*.ts" ! -name "*.spec.ts" -exec grep -H "@Span" {} \; | sort | uniq
+find /home/hibryda/code/ai/llm-agent-swarm -type f -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" | head -30
+ls -la /home/hibryda/code/ai/llm-agent-swarm/ | head -20
+find /home/hibryda/code/ai/llm-agent-swarm -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) | sort
+find /home/hibryda/code/ai/llm-agent-swarm/src -type f 2>/dev/null | head -50
+grep -r "import asyncio\|from asyncio\|async def\|await " /home/hibryda/code/ai/llm-agent-swarm/src --include="*.py"
+grep -r "pytest\|unittest\|fixture\|@" /home/hibryda/code/ai/llm-agent-swarm --include="*.py" | head -30
+find /home/hibryda/code/ai/llm-agent-swarm -type d -name test -o -type d -name tests 2>/dev/null
+grep -r "sleep\|time.time\|time\.sleep\|timeout\|wait\|idle\|settle\|debounce" /home/hibryda/code/ai/llm-agent-swarm/src --include="*.py"
+tree -L 2 -I '__pycache__|*.pyc' /home/hibryda/code/ai/llm-agent-swarm 2>/dev/null || find /home/hibryda/code/ai/llm-agent-swarm -maxdepth 2 -type d | head -30
+git log --oneline -15
+git diff --stat HEAD~11..HEAD
+find . -name "task_plan.md" -o -name "findings.md" -o -name "progress.md" -o -name "plan_*.md" -o -name "*_plan.md" | grep -v node_modules | grep -v .dart_tool
+git log --oneline -11 --format="%h %s"
+grep -n "mediator.rs\|repositories/\|error\.rs\|sim_config_reader\|chat_typing\|user\.py\|009_" /home/hibryda/code/bridge-coach/CLAUDE.md | head -30
+grep -n "^### \|^## \|Repository Structure\|Key Files\|State Management\|Key Architectural\|Database Schema\|Migration" /home/hibryda/code/bridge-coach/CLAUDE.md | head -40
+rm -f task_plan.md findings.md progress.md
+git log --oneline -3
+$(command -v python3 || command -v python) /home/hibryda/.config/claude/plugins/cache/planning-with-files/planning-with-files/2.11.0/scripts/session-catchup.py "$(pwd)"
+ls /home/hibryda/code/bridge-coach/tools/design/output/ 2>/dev/null | head -5; echo "---"; ls /home/hibryda/code/bridge-coach/app/assets/ 2>/dev/null | head -20
