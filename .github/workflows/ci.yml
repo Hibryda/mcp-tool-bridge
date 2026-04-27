@@ -46,8 +46,8 @@ jobs:
       - name: cargo clippy
         run: cargo clippy --all-targets
 
-      - name: Build binary (required by e2e tests)
-        run: cargo build -p mcp-tool-bridge
+      - name: Build binaries (required by e2e tests)
+        run: cargo build -p mcp-tool-bridge -p mcp-tool-bridge-hook
 
       - name: Unit tests
         run: cargo test --lib --bins --no-fail-fast
@@ -57,6 +57,20 @@ jobs:
 
       - name: E2E tests (default features — no real infra)
         run: cargo test --test e2e --no-fail-fast
+
+      - name: Hook tests (unit + e2e)
+        run: cargo test -p mcp-tool-bridge-hook --no-fail-fast
+
+      - name: Plugin smoke test (validate plugin manifest JSON)
+        shell: bash
+        run: |
+          python3 -c "
+          import json, sys
+          for f in ['plugin/.claude-plugin/plugin.json', 'plugin/.mcp.json', 'plugin/hooks/hooks.json']:
+              with open(f) as fh:
+                  json.load(fh)
+              print(f'OK: {f}')
+          "
 
   coverage:
     name: Coverage
@@ -103,6 +117,10 @@ jobs:
           key: ubuntu-cargo-release-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ubuntu-cargo-release-
       - name: cargo build --release
-        run: cargo build --release -p mcp-tool-bridge
+        run: cargo build --release -p mcp-tool-bridge -p mcp-tool-bridge-hook
       - name: Smoke test (--list-tools)
         run: ./target/release/mcp-tool-bridge --list-tools
+      - name: Smoke test (hook off-mode is silent)
+        run: |
+          echo '{"tool_name":"Bash","tool_input":{"command":"ls"}}' \
+            | MCP_BRIDGE_HOOK_MODE=off ./target/release/mcp-tool-bridge-hook
