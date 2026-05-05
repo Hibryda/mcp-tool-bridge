@@ -19,20 +19,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Native builds on free runners.
           - triple: x86_64-unknown-linux-gnu
             os: ubuntu-latest
           - triple: aarch64-unknown-linux-gnu
             os: ubuntu-24.04-arm
-          - triple: x86_64-apple-darwin
-            os: macos-13
           - triple: aarch64-apple-darwin
+            os: macos-latest
+          # x86_64-apple-darwin: cross-compiled from the arm64 runner. The free
+          # macos-13 (x86_64) pool is heavily oversubscribed; the Apple toolchain
+          # on macos-latest can target x86_64 natively via `-target` SDK support.
+          - triple: x86_64-apple-darwin
             os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install Rust
+      - name: Install Rust toolchain (with target)
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.triple }}
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -41,16 +47,16 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ matrix.triple }}-release-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-${{ matrix.triple }}-release-
+          key: ${{ matrix.triple }}-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.triple }}-release-
 
       - name: Build release binaries
-        run: cargo build --release -p mcp-tool-bridge -p mcp-tool-bridge-hook
+        run: cargo build --release --target ${{ matrix.triple }} -p mcp-tool-bridge -p mcp-tool-bridge-hook
 
       - name: Strip binaries
         run: |
-          strip target/release/mcp-tool-bridge
-          strip target/release/mcp-tool-bridge-hook
+          strip target/${{ matrix.triple }}/release/mcp-tool-bridge
+          strip target/${{ matrix.triple }}/release/mcp-tool-bridge-hook
 
       - name: Pack tarball
         shell: bash
@@ -60,7 +66,7 @@ jobs:
           TRIPLE="${{ matrix.triple }}"
           NAME="mcp-tool-bridge-v${VERSION}-${TRIPLE}"
           mkdir -p dist
-          cp target/release/mcp-tool-bridge target/release/mcp-tool-bridge-hook dist/
+          cp "target/${TRIPLE}/release/mcp-tool-bridge" "target/${TRIPLE}/release/mcp-tool-bridge-hook" dist/
           cd dist
           tar -czf "${NAME}.tar.gz" mcp-tool-bridge mcp-tool-bridge-hook
           rm mcp-tool-bridge mcp-tool-bridge-hook
