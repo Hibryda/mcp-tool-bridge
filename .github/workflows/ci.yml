@@ -61,16 +61,19 @@ jobs:
       - name: Hook tests (unit + e2e)
         run: cargo test -p mcp-tool-bridge-hook --no-fail-fast
 
-      - name: Plugin smoke test (validate plugin manifest JSON)
+      - name: Plugin smoke test (validate plugin + marketplace manifest JSON)
         shell: bash
         run: |
           python3 -c "
-          import json, sys
-          for f in ['plugin/.claude-plugin/plugin.json', 'plugin/.mcp.json', 'plugin/hooks/hooks.json']:
+          import json
+          for f in ['.claude-plugin/marketplace.json', 'plugin/.claude-plugin/plugin.json', 'plugin/.mcp.json', 'plugin/hooks/hooks.json']:
               with open(f) as fh:
                   json.load(fh)
               print(f'OK: {f}')
           "
+
+      - name: Launcher script tests
+        run: ./plugin/bin/test_launcher.sh
 
   coverage:
     name: Coverage
