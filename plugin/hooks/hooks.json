@@ -6,8 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/../target/release/mcp-tool-bridge-hook",
-            "timeout": 3
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/launcher.sh mcp-tool-bridge-hook",
+            "timeout": 5
           }
         ]
       }
