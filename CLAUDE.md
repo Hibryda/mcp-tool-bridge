@@ -4,7 +4,7 @@
 
 ## Status
 
-v0.1 complete — 20 tools, 103 unit tests, 1740 integration tests. PreToolUse hook (`crates/hook/`, 25 unit + 11 e2e tests) and Claude Code plugin (`plugin/`) bundled. CI green on ubuntu+macos. Pushed to https://github.com/Hibryda/mcp-tool-bridge.
+v0.1 complete — 20 tools, 103 unit tests, 1740 integration tests. PreToolUse hook (`crates/hook/`, 25 unit + 11 e2e tests) and Claude Code plugin (`plugin/`) bundled. Repo doubles as a marketplace (`.claude-plugin/marketplace.json`) with a 4-arch release pipeline; `plugin/bin/launcher.sh` handles checksum-verified binary download per host. CI green on ubuntu+macos. Pushed to https://github.com/Hibryda/mcp-tool-bridge.
 
 ## Tech Stack
 
@@ -21,7 +21,7 @@ Three crates in a Cargo workspace:
 - `tools` — MCP server (`mcp-tool-bridge` binary). Dispatch layer: free functions in `dispatch.rs` shared by rmcp `tool_router` and batch `HashMap`. `--tools` flag filters registration at startup.
 - `hook` — PreToolUse hook (`mcp-tool-bridge-hook` binary). Reads JSON on stdin, parses Bash commands via `shell-words`, suggests/blocks via `MCP_BRIDGE_HOOK_MODE`.
 
-The Claude Code plugin lives in `plugin/` and references both binaries via `${CLAUDE_PLUGIN_ROOT}/../target/release/`.
+The Claude Code plugin lives in `plugin/`. `plugin/bin/launcher.sh` (POSIX) is the single entry point both the MCP server and the hook are wired to via the manifests; it detects the host triple, downloads the matching tarball from `${MCP_TOOL_BRIDGE_RELEASE_BASE_URL}/v<version>/`, verifies SHA-256 against `plugin/checksums.txt`, and caches under `${CLAUDE_PLUGIN_ROOT}/.bin-cache/`. `MCP_TOOL_BRIDGE_BIN_DIR` env override skips the download path for local development.
 
 ## Documentation (SOURCE OF TRUTH)
 

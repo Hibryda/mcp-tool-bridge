@@ -115,16 +115,27 @@ cargo build --release
 
 ### Claude Code (as a plugin)
 
-The bundled plugin (`plugin/`) wires both the MCP server and the PreToolUse hook
-in one go. After `cargo build --release`, install it:
+The repo doubles as a Claude Code marketplace. Native binaries for your host
+arch are downloaded + checksum-verified on first use, so no `cargo build`
+step is required for end users:
 
 ```
-/plugin install file:///path/to/mcp-tool-bridge/plugin
+claude plugin marketplace add https://github.com/Hibryda/mcp-tool-bridge.git
+claude plugin install mcp-tool-bridge@mcp-tool-bridge
 ```
+
+Supported triples (built on native CI runners): `x86_64-unknown-linux-gnu`,
+`aarch64-unknown-linux-gnu`, `x86_64-apple-darwin`, `aarch64-apple-darwin`.
+
+For organisations that can't reach `github.com`, point
+`MCP_TOOL_BRIDGE_RELEASE_BASE_URL` (in `~/.claude/settings.json` `env`) at
+your internal Forgejo / Gitea / GitLab Releases host.
 
 The hook defaults to **suggest mode** (adds `additionalContext` to the agent,
 never blocks). Set `MCP_BRIDGE_HOOK_MODE=enforce` to block uncovered Bash, or
 `=off` to disable it.
+
+See [`plugin/README.md`](plugin/README.md) for the full distribution model.
 
 ### Claude Code (MCP server only, no hook)
 

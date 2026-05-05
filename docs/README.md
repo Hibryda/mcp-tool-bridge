@@ -58,13 +58,37 @@ Empirically: 25/300 real Bash invocations from local transcript history (~8.3%) 
 
 ### plugin/
 
-Claude Code plugin manifest bundling both binaries:
-- `plugin/.claude-plugin/plugin.json` — manifest
-- `plugin/.mcp.json` — MCP server config (registers `tool-bridge`)
-- `plugin/hooks/hooks.json` — PreToolUse hook on Bash matcher
-- Both binaries referenced via `${CLAUDE_PLUGIN_ROOT}/../target/release/`
+Claude Code plugin manifest. The repo doubles as a marketplace —
+`.claude-plugin/marketplace.json` at repo root declares the plugin lives at
+`./plugin/`, so `claude plugin marketplace add <repo-url>` works against any
+git host (GitHub, Forgejo, Gitea, GitLab).
 
-Install: `/plugin install file:///path/to/mcp-tool-bridge/plugin` (after `cargo build --release`).
+- `plugin/.claude-plugin/plugin.json` — plugin manifest (name, version, homepage)
+- `plugin/.mcp.json` — registers `tool-bridge` stdio server
+- `plugin/hooks/hooks.json` — PreToolUse hook on Bash matcher
+- `plugin/version` — pinned plugin version (single line, e.g. `0.1.0`)
+- `plugin/checksums.txt` — SHA-256 of every release tarball, committed by CI
+- `plugin/bin/launcher.sh` — POSIX launcher: detects host triple, downloads +
+  verifies + caches the matching native binary tarball under
+  `${CLAUDE_PLUGIN_ROOT}/.bin-cache/v<version>/<triple>/`
+- `plugin/bin/test_launcher.sh` — 8 POSIX-shell tests for the launcher
+
+Install:
+```sh
+claude plugin marketplace add https://github.com/Hibryda/mcp-tool-bridge.git
+claude plugin install mcp-tool-bridge@mcp-tool-bridge
+```
+
+Distribution: `.github/workflows/release.yml` is tag-triggered (`v*`), builds
+all four supported triples on native runners (`ubuntu-latest`,
+`ubuntu-24.04-arm`, `macos-13`, `macos-latest`), uploads tarballs +
+`checksums.txt` to GitHub Releases, then auto-commits the new checksums back to
+`master` so the marketplace clone has the verification data.
+
+Org-internal deployment: set `MCP_TOOL_BRIDGE_RELEASE_BASE_URL` (in
+`~/.claude/settings.json` `env` block) to the org's Forgejo / Gitea / GitLab
+release host. The launcher's URL pattern is `<base>/v<version>/<tarball>`,
+which all three serve identically to GitHub.
 
 ## Rust MCP Ecosystem
 

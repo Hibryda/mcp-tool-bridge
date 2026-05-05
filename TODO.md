@@ -2,6 +2,9 @@
 
 ## Remaining
 
+- [ ] First release tag (`v0.1.0`) — push to validate release workflow end-to-end
+- [ ] Forgejo Releases mirror — optional `release.yml` step to push tarballs to `git.hemoglobina.store` when `FORGEJO_RELEASE_TOKEN` secret is present
+- [ ] GPG / cosign signing of release artifacts (deferred until first org rollout)
 - [ ] --log-calls flag for call logging (JSONL format for usage analysis)
 - [ ] --batch-concurrency N and --batch-timeout-secs N flags
 - [ ] Signal handler (SIGTERM/SIGINT) with CancellationToken for batch cleanup
@@ -38,3 +41,6 @@ See `DEFERRED.md` for the full list with deferral reasons.
 - [x] PreToolUse hook (`crates/hook/`) — shell-words tokenizer + 7 command handlers, 25 unit + 11 e2e tests | Done: 2026-04-27
 - [x] Claude Code plugin packaging (`plugin/`) — manifest + .mcp.json + hooks.json | Done: 2026-04-27
 - [x] CI: hook tests + plugin manifest validation in test job | Done: 2026-04-27
+- [x] Claude Code marketplace manifest + multi-arch launcher with SHA-256 verification | Done: 2026-05-05
+- [x] Release workflow (4-target native matrix, GitHub Releases, auto-commit checksums) | Done: 2026-05-05
+- [x] 8 POSIX-shell launcher tests (argv, override, warm/cold cache, checksum tampering) | Done: 2026-05-05
