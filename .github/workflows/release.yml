@@ -1,0 +1,133 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build:
+    name: Build (${{ matrix.triple }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - triple: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - triple: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+          - triple: x86_64-apple-darwin
+            os: macos-13
+          - triple: aarch64-apple-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.triple }}-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.triple }}-release-
+
+      - name: Build release binaries
+        run: cargo build --release -p mcp-tool-bridge -p mcp-tool-bridge-hook
+
+      - name: Strip binaries
+        run: |
+          strip target/release/mcp-tool-bridge
+          strip target/release/mcp-tool-bridge-hook
+
+      - name: Pack tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          TRIPLE="${{ matrix.triple }}"
+          NAME="mcp-tool-bridge-v${VERSION}-${TRIPLE}"
+          mkdir -p dist
+          cp target/release/mcp-tool-bridge target/release/mcp-tool-bridge-hook dist/
+          cd dist
+          tar -czf "${NAME}.tar.gz" mcp-tool-bridge mcp-tool-bridge-hook
+          rm mcp-tool-bridge mcp-tool-bridge-hook
+          ls -la
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: tarball-${{ matrix.triple }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish release + commit checksums
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all tarball artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+
+      - name: Stage tarballs and compute checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          find artifacts -name '*.tar.gz' -exec cp {} dist/ \;
+          cd dist
+          ls -la
+          # `sha256sum` format: "<hash>  <filename>" — same as what
+          # plugin/bin/launcher.sh expects.
+          sha256sum *.tar.gz > checksums.txt
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "Auto-generated release. See CHANGELOG.md for details. Tarballs are flat (binaries at archive root); checksums.txt is the canonical SHA-256 manifest." \
+            dist/*.tar.gz dist/checksums.txt
+
+      - name: Commit checksums to master
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Move to master without leaving the detached-tag HEAD.
+          git fetch origin master
+          git checkout master
+          cp dist/checksums.txt plugin/checksums.txt
+          git add plugin/checksums.txt
+          if git diff --cached --quiet; then
+            echo "No checksum changes; skipping commit."
+            exit 0
+          fi
+          git commit -m "chore(release): commit checksums for v${VERSION} [skip ci]"
+          git push origin master
