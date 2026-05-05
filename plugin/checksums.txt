@@ -1,0 +1,4 @@
+9fe6c82ec1c204efca9d01bf22b92352a34bbf88a248bc13f3990bc27489758a  mcp-tool-bridge-v0.1.0-aarch64-apple-darwin.tar.gz
+08ed29ab3dc087ccfcdf75a303809a27ed2c28aa5ba5141bdb488cef2005ca19  mcp-tool-bridge-v0.1.0-aarch64-unknown-linux-gnu.tar.gz
+e18c7391b77f90575c62addea49708ac333e09ee03f531e72984f3b0456a6536  mcp-tool-bridge-v0.1.0-x86_64-apple-darwin.tar.gz
+cd4b07e1274e82095bb070fb5d9e9ce413fd7316a7ef3daef0aa1f57c5c0fedd  mcp-tool-bridge-v0.1.0-x86_64-unknown-linux-gnu.tar.gz
