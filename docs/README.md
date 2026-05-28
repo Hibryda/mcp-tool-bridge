@@ -41,9 +41,11 @@ Shared types and utilities (`crates/bridge-core/src/lib.rs`):
 
 ### tools (binary: `mcp-tool-bridge`)
 
-MCP server binary (`crates/tools/src/main.rs`) using rmcp 1.3.0 `#[tool_router]` pattern:
+MCP server binary (`crates/tools/src/main.rs`) using rmcp 1.3.0 `#[tool_router]` pattern. 22 tools (the original 20 + two composite tools):
 - `ls` tool — lists directory contents via `tokio::fs::read_dir`, returns `Vec<FileEntry>`
 - `wc` tool — counts lines/words/bytes/chars from file path or inline text input
+- `repo_snapshot` (composite, read-only) — one call returns branch + ahead/behind, working-tree counts + entries, an aggregate working diff stat (uncommitted vs HEAD), and the N most recent commits. Pure composition of `git_status` + `git_log` + a `git diff --numstat` aggregate. Collapses the common status→diff→log inspection combo.
+- `pr_status` (composite, read-only, forge-agnostic) — detects the forge from the `origin` remote (github→`gh`, gitlab→`glab`, else Forgejo REST) and returns `{state, mergeable, checks{passing,failing,pending}, comments, review_decision (github), ready_to_merge}`. Forgejo token resolves from `FORGEJO_TOKEN` or `fj`'s `keys.json`. GitLab not yet wired (glab absent).
 
 ### hook (binary: `mcp-tool-bridge-hook`)
 

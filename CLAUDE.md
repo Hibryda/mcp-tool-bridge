@@ -1,10 +1,12 @@
 # MCP Tool Bridge
 
-20-tool Rust MCP server: ls, wc, diff, lsof, find, curl, git (status/log/show), gh_api, ps, kubectl (list/get), docker (list/inspect/images), sqlite (query/tables), batch, pipe. See `docs/README.md` and `.tribunal/tribunal-report.md`.
+22-tool Rust MCP server: ls, wc, diff, lsof, find, curl, git (status/log/show), gh_api, ps, kubectl (list/get), docker (list/inspect/images), sqlite (query/tables), batch, pipe, repo_snapshot, pr_status. See `docs/README.md` and `.tribunal/tribunal-report.md`.
 
 ## Status
 
-v0.1.0 released 2026-05-05 — 20 tools, 103 unit tests, 1740 integration tests. PreToolUse hook (`crates/hook/`, 25 unit + 11 e2e tests) and Claude Code plugin (`plugin/`) bundled. Repo doubles as a marketplace (`.claude-plugin/marketplace.json`) with a 4-arch release pipeline; `plugin/bin/launcher.sh` handles checksum-verified binary download per host. CI green on ubuntu+macos. Installed + verified working at https://github.com/Hibryda/mcp-tool-bridge.
+v0.1.0 released 2026-05-05 (20 tools). Dev build now has 22 tools (+`repo_snapshot`, +`pr_status`, both read-only composites, added 2026-05-28) — needs a `v0.2.0` tag before the installed plugin picks them up. 461 Rust tests + 8 launcher tests, green. PreToolUse hook (`crates/hook/`) bundled but a confirmed no-op (Claude Code doesn't inject `additionalContext` on PreToolUse); adoption driven by `.claude/rules/70-72`. Repo doubles as a marketplace with a 4-arch release pipeline; `plugin/bin/launcher.sh` does checksum-verified per-host binary download. https://github.com/Hibryda/mcp-tool-bridge. See Memora `composite-tool-roadmap`, `pr-status-forge-design`, `hook-suggest-mode-noop`.
+
+**Adding a tool touches 4 files:** `src/<tool>.rs`, `lib.rs` (pub mod), `main.rs` (mod + `#[tool]` method + `ALL_TOOLS`), `dispatch.rs` (`do_<tool>` + import + `register!`). After adding, **`cargo build --release`** — the e2e harness prefers the release binary, so a stale one makes new-tool e2e tests fail.
 
 **Adoption:** the PreToolUse suggest-hook is a no-op (Claude Code does not inject `additionalContext` on PreToolUse — measured ~1.6% tool adoption). Driving adoption via context rules in `.claude/rules/70-72` instead. Next: composite tools `repo_snapshot` + `pr_status` (read-only), then gated mutating tools. See Memora `composite-tool-roadmap`, `hook-suggest-mode-noop`.
 

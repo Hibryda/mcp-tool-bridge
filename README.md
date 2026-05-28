@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Hibryda/mcp-tool-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/Hibryda/mcp-tool-bridge/actions/workflows/ci.yml)
 
-MCP server wrapping CLI tools with structured JSON output. 20 tools, single Rust binary (~10MB), stdio transport. Bundled as a Claude Code plugin with a PreToolUse hook that nudges agents toward the structured tools when they reach for plain Bash. 103 unit + 5 doc + 187 e2e + 36 hook tests across ubuntu+macos.
+MCP server wrapping CLI tools with structured JSON output. 22 tools, single Rust binary (~10MB), stdio transport. Bundled as a Claude Code plugin and distributed via a Claude Code marketplace with checksum-verified multi-arch binaries. Adoption is driven by context rules (`.claude/rules/70-72`) rather than the PreToolUse hook, which proved a no-op. 121 unit + 5 doc + 193 e2e + 36 hook + 8 launcher tests across ubuntu+macos.
 
 ## Before / After
 
@@ -106,6 +106,8 @@ nginx      1234   8u   IPv4  127.0.0.1:8080->10.0.0.5:43210
 | `curl` | HTTP request with structured status, headers, timing, body |
 | `batch` | Run multiple tools in parallel, one MCP call |
 | `pipe` | Run listing tool + filter on structured fields |
+| `repo_snapshot` | One call: branch + ahead/behind, working-tree counts, working diff stat, recent commits |
+| `pr_status` | Forge-agnostic PR status (gh/Forgejo): state, mergeable, CI checks, comments, ready_to_merge |
 
 ## Installation
 

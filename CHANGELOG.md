@@ -7,7 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
-- **Adoption rule drafts** (`plugin/rules/`) — `bridge-read-inspection.md`, `bridge-http-json.md`, `bridge-chaining.md`: prescriptive command→tool tables instructing agents to prefer the bridge over Bash for covered shapes, each with explicit "when Bash is still correct" boundaries. Replaces the PreToolUse suggest-hook as the adoption mechanism.
+- **`repo_snapshot` tool** (read-only composite) — one call returns branch + ahead/behind, working-tree change counts + entries, an aggregate working diff stat (`git diff --numstat` vs HEAD), and the N most recent commits. Collapses the common `git status`→`git diff`→`git log` inspection combo (1,052× in history). 4 unit + 3 e2e tests.
+- **`pr_status` tool** (read-only, forge-agnostic) — detects the forge from the `origin` remote (github→`gh`, gitlab→`glab`, else Forgejo REST) and returns `{state, mergeable, checks{passing,failing,pending}, comments, review_decision (github), ready_to_merge}`. Forgejo token resolves from `FORGEJO_TOKEN` or `fj`'s `keys.json` (alias-aware). GitLab backend is a typed-error stub (glab not installed). `review_decision` substitutes for the originally-planned unresolved-thread count, which neither forge exposes cheaply. 14 unit + 3 e2e tests; verified live against GitHub `cli/cli#1` and Forgejo `hib-pr-reviewer#116`.
+- **Adoption rules** in `.claude/rules/70-72` (`bridge-read-inspection`, `bridge-http-json`, `bridge-chaining`) — prescriptive command→tool tables instructing agents to prefer the bridge over Bash for covered shapes, each with explicit "when Bash is still correct" boundaries. Replaces the PreToolUse suggest-hook as the adoption mechanism.
+
+### Changed
+- 22 tools total (up from 20).
 
 ### Notes
 - **Adoption finding (2026-05-28):** measured ~1.6% MCP tool usage vs equivalent Bash across 26k transcripts. The PreToolUse suggest-hook is a no-op — Claude Code does not inject `hookSpecificOutput.additionalContext` on PreToolUse (it fired 108×/20 sessions with empty model-visible content). Pivoting to context rules; suggest-hook slated for removal.
