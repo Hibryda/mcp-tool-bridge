@@ -6,9 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-28
+
 ### Added
 - **`repo_snapshot` tool** (read-only composite) — one call returns branch + ahead/behind, working-tree change counts + entries, an aggregate working diff stat (`git diff --numstat` vs HEAD), and the N most recent commits. Collapses the common `git status`→`git diff`→`git log` inspection combo (1,052× in history). 4 unit + 3 e2e tests.
-- **`pr_status` tool** (read-only, forge-agnostic) — detects the forge from the `origin` remote (github→`gh`, gitlab→`glab`, else Forgejo REST) and returns `{state, mergeable, checks{passing,failing,pending}, comments, review_decision (github), ready_to_merge}`. Forgejo token resolves from `FORGEJO_TOKEN` or `fj`'s `keys.json` (alias-aware). GitLab backend is a typed-error stub (glab not installed). `review_decision` substitutes for the originally-planned unresolved-thread count, which neither forge exposes cheaply. 14 unit + 3 e2e tests; verified live against GitHub `cli/cli#1` and Forgejo `hib-pr-reviewer#116`.
+- **`pr_status` tool** (read-only, forge-agnostic) — detects the forge from the `origin` remote (github→`gh`, gitlab→`glab`, else Forgejo REST) and returns `{state, mergeable, checks{passing,failing,pending}, comments, review_decision (github), review_threads_unresolved (github), ready_to_merge}`. GitHub unresolved-thread count comes from a GraphQL call (`reviewThreads.isResolved`); Forgejo/GitLab leave it `None` (no GraphQL; Forgejo review-bot uses issue comments, not threads). Forgejo token resolves from `FORGEJO_TOKEN` or `fj`'s `keys.json` (alias-aware). GitLab backend is a typed-error stub (glab not installed). 16 unit + 3 e2e tests; verified live against GitHub `cli/cli` and Forgejo `hib-pr-reviewer#116`.
 - **Adoption rules** in `.claude/rules/70-72` (`bridge-read-inspection`, `bridge-http-json`, `bridge-chaining`) — prescriptive command→tool tables instructing agents to prefer the bridge over Bash for covered shapes, each with explicit "when Bash is still correct" boundaries. Replaces the PreToolUse suggest-hook as the adoption mechanism.
 
 ### Changed
