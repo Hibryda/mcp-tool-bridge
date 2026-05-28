@@ -7,11 +7,11 @@ use serde_json::json;
 fn lists_all_tools_by_default() {
     let mut s = Server::spawn(&[]);
     let tools = s.list_tools();
-    // We have 20 tools as of v0.1.
+    // 22 tools: the original 20 + repo_snapshot + pr_status.
     assert_eq!(
         tools.len(),
-        20,
-        "expected 20 tools, got {}: {:?}",
+        22,
+        "expected 22 tools, got {}: {:?}",
         tools.len(),
         tools
     );

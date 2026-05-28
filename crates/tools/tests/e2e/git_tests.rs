@@ -291,3 +291,110 @@ fn show_root_commit_has_no_parents() {
     assert!(r.success());
     assert_eq!(r.data["parent_hashes"].as_array().unwrap().len(), 0);
 }
+
+// ── repo_snapshot ───────────────────────────────────────────────────
+
+#[test]
+fn snapshot_clean_repo() {
+    let d = init_git_repo();
+    let mut s = Server::spawn(&[]);
+    let r = s.call("repo_snapshot", json!({"path": d.path()}));
+    assert!(r.success());
+    assert_eq!(r.data["clean"], true);
+    assert_eq!(r.data["branch"]["head"], "main");
+    assert_eq!(r.data["entries"].as_array().unwrap().len(), 0);
+    // Three commits made by the fixture.
+    assert_eq!(r.data["recent_commits"].as_array().unwrap().len(), 3);
+    // Clean tree → no working diff.
+    assert_eq!(r.data["working_diff"]["files_changed"], 0);
+    assert_eq!(r.data["working_diff"]["additions"], 0);
+    assert_eq!(r.data["working_diff"]["deletions"], 0);
+}
+
+#[test]
+fn snapshot_dirty_tree_has_working_diff() {
+    let d = init_git_repo();
+    // Modify a tracked file: README went from "# initial\n" to two lines.
+    std::fs::write(d.path().join("README.md"), "# initial\nmore\n").unwrap();
+    let mut s = Server::spawn(&[]);
+    let r = s.call("repo_snapshot", json!({"path": d.path()}));
+    assert!(r.success());
+    assert_eq!(r.data["clean"], false);
+    assert!(r.data["working_diff"]["files_changed"].as_u64().unwrap() >= 1);
+    assert!(r.data["working_diff"]["additions"].as_u64().unwrap() >= 1);
+    // The modified file shows up as an entry.
+    let entries = r.data["entries"].as_array().unwrap();
+    assert!(entries.iter().any(|e| e["path"] == "README.md"));
+}
+
+#[test]
+fn snapshot_log_limit_respected() {
+    let d = init_git_repo();
+    let mut s = Server::spawn(&[]);
+    let r = s.call("repo_snapshot", json!({"path": d.path(), "log_limit": 1}));
+    assert!(r.success());
+    assert_eq!(r.data["recent_commits"].as_array().unwrap().len(), 1);
+}
+
+// ── pr_status (offline/deterministic paths) ─────────────────────────
+
+#[test]
+fn pr_status_no_origin_errors() {
+    // Fixture repo has no 'origin' remote.
+    let d = init_git_repo();
+    let mut s = Server::spawn(&[]);
+    let r = s.call("pr_status", json!({"path": d.path(), "number": 1}));
+    assert!(!r.success());
+    assert!(
+        r.content_text.to_lowercase().contains("origin"),
+        "expected origin error, got: {}",
+        r.content_text
+    );
+}
+
+#[test]
+fn pr_status_gitlab_override_not_wired() {
+    let d = init_git_repo();
+    // Give it an origin so detection passes; force gitlab to hit the stub.
+    Command::new("git")
+        .args(["remote", "add", "origin", "git@gitlab.com:group/proj.git"])
+        .current_dir(d.path())
+        .output()
+        .unwrap();
+    let mut s = Server::spawn(&[]);
+    let r = s.call(
+        "pr_status",
+        json!({"path": d.path(), "number": 1, "forge": "gitlab"}),
+    );
+    assert!(!r.success());
+    assert!(
+        r.content_text.to_lowercase().contains("glab"),
+        "expected glab-not-available error, got: {}",
+        r.content_text
+    );
+}
+
+#[test]
+fn pr_status_forge_autodetected_from_remote() {
+    // A gitlab remote with no forge override should still route to the gitlab
+    // stub (proving host-based detection runs), not to github/forgejo.
+    let d = init_git_repo();
+    Command::new("git")
+        .args([
+            "remote",
+            "add",
+            "origin",
+            "https://gitlab.example.com/team/app.git",
+        ])
+        .current_dir(d.path())
+        .output()
+        .unwrap();
+    let mut s = Server::spawn(&[]);
+    let r = s.call("pr_status", json!({"path": d.path(), "number": 1}));
+    assert!(!r.success());
+    assert!(
+        r.content_text.to_lowercase().contains("glab"),
+        "expected gitlab detection, got: {}",
+        r.content_text
+    );
+}
