@@ -27,7 +27,9 @@ mod kubectl;
 mod ls;
 mod lsof;
 mod pipe;
+mod pr_status;
 mod ps;
+mod repo_snapshot;
 mod sqlite;
 mod wc;
 
@@ -156,6 +158,24 @@ struct GitShowParams {
     reference: String,
     /// Include file-level stats.
     include_stats: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct RepoSnapshotParams {
+    /// Path to the git repository. Defaults to current directory.
+    path: Option<String>,
+    /// Number of recent commits to include (default 10, max 50).
+    log_limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct PrStatusParams {
+    /// Pull request number.
+    number: u64,
+    /// Path to the local repo (origin remote used for forge + owner/repo detection). Defaults to current directory.
+    path: Option<String>,
+    /// Override forge detection: "github", "forgejo", or "gitlab". Defaults to inferring from the origin remote host.
+    forge: Option<String>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -495,6 +515,49 @@ impl ToolBridge {
             "include_stats": params.include_stats.unwrap_or(false),
         });
         match dispatch::do_git_show(value).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(
+        description = "One-call read-only repo overview: branch + ahead/behind, working-tree change counts and entries, aggregate working diff stat (uncommitted vs HEAD), and the N most recent commits. Collapses git status + diff + log into one structured result."
+    )]
+    async fn repo_snapshot(
+        &self,
+        Parameters(params): Parameters<RepoSnapshotParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let value = serde_json::json!({
+            "path": params.path.as_deref().unwrap_or("."),
+            "log_limit": params.log_limit.unwrap_or(10),
+        });
+        match dispatch::do_repo_snapshot(value).await {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(
+        description = "Forge-agnostic pull-request status (read-only). Detects forge from the origin remote (github→gh, gitlab→glab, else Forgejo REST). Returns state, mergeable, CI check counts (passing/failing/pending), comments, review decision (github), and a computed ready_to_merge boolean. GitLab not yet wired."
+    )]
+    async fn pr_status(
+        &self,
+        Parameters(params): Parameters<PrStatusParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let value = serde_json::json!({
+            "number": params.number,
+            "path": params.path.as_deref().unwrap_or("."),
+            "forge": params.forge,
+        });
+        match dispatch::do_pr_status(value).await {
             Ok(result) => {
                 let json = serde_json::to_string_pretty(&result)
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -896,7 +959,9 @@ const ALL_TOOLS: &[&str] = &[
     "ls",
     "lsof",
     "pipe",
+    "pr_status",
     "ps",
+    "repo_snapshot",
     "sqlite_query",
     "sqlite_tables",
     "wc",

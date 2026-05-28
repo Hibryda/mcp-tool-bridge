@@ -4,8 +4,8 @@
 use serde_json::Value;
 
 use crate::{
-    curl, diff, docker, find, gh_api, git_log, git_show, git_status, kubectl, ls, lsof, ps, sqlite,
-    wc,
+    curl, diff, docker, find, gh_api, git_log, git_show, git_status, kubectl, ls, lsof, pr_status,
+    ps, repo_snapshot, sqlite, wc,
 };
 
 /// Dispatch result: either a JSON value or an error string.
@@ -341,6 +341,38 @@ pub async fn do_git_show(params: Value) -> DispatchResult {
     }
 }
 
+// ── repo_snapshot ─────────────────────────────────────────────────────
+
+pub async fn do_repo_snapshot(params: Value) -> DispatchResult {
+    let path = params.get("path").and_then(|v| v.as_str()).unwrap_or(".");
+    let log_limit = params
+        .get("log_limit")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(10)
+        .min(50) as u32;
+
+    match repo_snapshot::repo_snapshot(path, log_limit).await {
+        Ok(result) => serde_json::to_value(&result).map_err(|e| e.to_string()),
+        Err(git_err) => Err(serde_json::to_string(&git_err).unwrap_or(git_err.message)),
+    }
+}
+
+// ── pr_status ─────────────────────────────────────────────────────────
+
+pub async fn do_pr_status(params: Value) -> DispatchResult {
+    let path = params.get("path").and_then(|v| v.as_str()).unwrap_or(".");
+    let number = params
+        .get("number")
+        .and_then(|v| v.as_u64())
+        .ok_or("missing required field 'number'")?;
+    let forge = params.get("forge").and_then(|v| v.as_str());
+
+    match pr_status::pr_status(path, number, forge).await {
+        Ok(result) => serde_json::to_value(&result).map_err(|e| e.to_string()),
+        Err(pr_err) => Err(serde_json::to_string(&pr_err).unwrap_or(pr_err.message)),
+    }
+}
+
 // ── ps ────────────────────────────────────────────────────────────────
 
 pub async fn do_ps(params: Value) -> DispatchResult {
@@ -482,6 +514,8 @@ pub fn build_dispatch_table(
     register!("git_log", do_git_log);
     register!("git_show", do_git_show);
     register!("git_status", do_git_status);
+    register!("repo_snapshot", do_repo_snapshot);
+    register!("pr_status", do_pr_status);
     register!("ps", do_ps);
     register!("ls", do_ls);
     register!("wc", do_wc);

@@ -14,6 +14,8 @@ pub mod kubectl;
 pub mod ls;
 pub mod lsof;
 pub mod pipe;
+pub mod pr_status;
 pub mod ps;
+pub mod repo_snapshot;
 pub mod sqlite;
 pub mod wc;

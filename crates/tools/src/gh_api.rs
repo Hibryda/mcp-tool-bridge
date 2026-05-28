@@ -231,7 +231,7 @@ fn redact_auth(msg: String) -> String {
 }
 
 /// Find gh binary path.
-fn which_gh() -> String {
+pub fn which_gh() -> String {
     // Check common locations
     for path in &[
         std::env::var("HOME").unwrap_or_default() + "/.local/bin/gh",
