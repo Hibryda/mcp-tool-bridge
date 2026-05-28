@@ -32,8 +32,13 @@ pub struct PrStatus {
     /// "open" | "closed" | "merged"
     pub state: String,
     pub title: String,
+    /// Whether the PR is a draft (never merge-ready while true).
+    pub is_draft: bool,
     /// None when the forge reports an unknown/computing merge state.
     pub mergeable: Option<bool>,
+    /// GitHub mergeStateStatus (CLEAN/DIRTY/BLOCKED/BEHIND/UNSTABLE/…). None elsewhere.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merge_state_status: Option<String>,
     pub checks: ChecksSummary,
     /// GitHub only: APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED. None elsewhere.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -44,8 +49,10 @@ pub struct PrStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub review_threads_unresolved: Option<u64>,
     pub comments: u64,
-    /// open AND mergeable AND no failing/pending checks AND not CHANGES_REQUESTED
-    /// AND no unresolved review threads (when that count is known).
+    /// Conservative, fail-closed merge-readiness gate: open, not draft,
+    /// mergeable, merge state clean, all checks known + green, not
+    /// CHANGES_REQUESTED, and (GitHub) zero unresolved review threads. An
+    /// unknown signal (failed CI/thread lookup) blocks readiness.
     pub ready_to_merge: bool,
 }
 
@@ -108,10 +115,12 @@ pub fn parse_remote_url(url: &str) -> Option<(String, String, String)> {
 
     for scheme in ["ssh://", "https://", "http://"] {
         if let Some(rest) = stripped.strip_prefix(scheme) {
-            let rest = rest.strip_prefix("git@").unwrap_or(rest);
-            if let Some((hostport, path)) = rest.split_once('/') {
-                let host = hostport.split(':').next().unwrap_or(hostport);
-                return split_owner_repo(host, path);
+            // Drop any userinfo (user[:pass]@) — never part of the host.
+            let rest = rest.rsplit_once('@').map(|(_, h)| h).unwrap_or(rest);
+            if let Some((authority, path)) = rest.split_once('/') {
+                // Keep the port: it's required to build the API URL for
+                // self-hosted instances on non-standard ports.
+                return split_owner_repo(authority, path);
             }
         }
     }
@@ -131,29 +140,49 @@ fn split_owner_repo(host: &str, path: &str) -> Option<(String, String, String)> 
 }
 
 pub fn detect_forge_from_host(host: &str) -> &'static str {
-    let h = host.to_lowercase();
-    if h.contains("github.com") || h == "github" {
+    // Strip the port before matching the hostname.
+    let h = host.split(':').next().unwrap_or(host).to_lowercase();
+    if h == "github.com" || h.ends_with(".github.com") || h == "github" {
         "github"
-    } else if h.contains("gitlab") {
+    } else if h == "gitlab.com" || h.ends_with(".gitlab.com") || h.contains("gitlab") {
         "gitlab"
     } else {
         "forgejo"
     }
 }
 
-fn compute_ready(
-    state: &str,
+/// Conservative, fail-closed merge-readiness gate. Backends fill the signals
+/// they can determine; an unknown signal (failed CI/thread lookup) blocks.
+struct MergeGate<'a> {
+    state: &'a str,
+    is_draft: bool,
     mergeable: Option<bool>,
-    checks: &ChecksSummary,
-    review_decision: Option<&str>,
+    /// GitHub mergeStateStatus is one of the blocking states (DIRTY/BLOCKED/
+    /// UNKNOWN/DRAFT). False when there's no such signal (e.g. Forgejo).
+    merge_state_bad: bool,
+    checks: &'a ChecksSummary,
+    /// False when CI status couldn't be fetched → fail closed.
+    checks_known: bool,
+    changes_requested: bool,
+    /// Unresolved review-thread count; None = unknown.
     threads_unresolved: Option<u64>,
-) -> bool {
-    state == "open"
-        && mergeable == Some(true)
-        && checks.failing == 0
-        && checks.pending == 0
-        && review_decision != Some("CHANGES_REQUESTED")
-        && threads_unresolved.is_none_or(|n| n == 0)
+    /// Whether the thread signal applies to this forge (GitHub yes, Forgejo no).
+    threads_applicable: bool,
+}
+
+impl MergeGate<'_> {
+    fn ready(&self) -> bool {
+        self.state == "open"
+            && !self.is_draft
+            && self.mergeable == Some(true)
+            && !self.merge_state_bad
+            && self.checks_known
+            && self.checks.failing == 0
+            && self.checks.pending == 0
+            && !self.changes_requested
+            // GitHub: None (GraphQL failed) → not ready (fail-closed).
+            && (!self.threads_applicable || self.threads_unresolved == Some(0))
+    }
 }
 
 // ── GitHub backend ──────────────────────────────────────────────────
@@ -169,7 +198,7 @@ async fn github_pr_status(owner: &str, repo: &str, number: u64) -> Result<PrStat
         "-R",
         &repo_flag,
         "--json",
-        "number,state,title,mergeable,statusCheckRollup,reviewDecision,comments",
+        "number,state,title,isDraft,mergeable,mergeStateStatus,statusCheckRollup,reviewDecision,comments",
     ]);
     if let Ok(token) = std::env::var("GITHUB_PERSONAL_ACCESS_TOKEN") {
         cmd.env("GH_TOKEN", token);
@@ -205,16 +234,18 @@ async fn github_pr_status(owner: &str, repo: &str, number: u64) -> Result<PrStat
 
 /// Count unresolved review threads via GraphQL. Returns None on any failure.
 async fn github_unresolved_threads(owner: &str, repo: &str, number: u64) -> Option<u64> {
-    let query = "query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved}}}}}";
+    let query = "query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved} pageInfo{hasNextPage}}}}}";
     let mut cmd = tokio::process::Command::new(crate::gh_api::which_gh());
     cmd.args([
         "api",
         "graphql",
+        // `-f` (string) for owner/repo so gh never treats a leading '@' as a
+        // file or coerces the value; `-F` (typed) only for the Int variable.
         "-f",
         &format!("query={query}"),
-        "-F",
+        "-f",
         &format!("o={owner}"),
-        "-F",
+        "-f",
         &format!("r={repo}"),
         "-F",
         &format!("n={number}"),
@@ -227,20 +258,39 @@ async fn github_unresolved_threads(owner: &str, repo: &str, number: u64) -> Opti
         return None;
     }
     let v: Value = serde_json::from_slice(&out.stdout).ok()?;
-    Some(count_unresolved_threads(&v))
+    // A GraphQL-level error (HTTP 200 with an `errors` array, or missing data)
+    // means the count is unknown — return None so readiness fails closed.
+    count_unresolved_threads(&v)
 }
 
-/// Pure: count `isResolved == false` nodes in a GraphQL reviewThreads response.
-fn count_unresolved_threads(v: &Value) -> u64 {
-    v.pointer("/data/repository/pullRequest/reviewThreads/nodes")
-        .and_then(|n| n.as_array())
-        .map(|nodes| {
-            nodes
-                .iter()
-                .filter(|t| t.get("isResolved").and_then(|x| x.as_bool()) == Some(false))
-                .count() as u64
-        })
-        .unwrap_or(0)
+/// Pure: count `isResolved == false` review threads. Returns None (unknown) on
+/// GraphQL `errors`, absent nodes, or undecidable truncation — so callers fail
+/// closed instead of assuming zero.
+fn count_unresolved_threads(v: &Value) -> Option<u64> {
+    if v.get("errors")
+        .and_then(|e| e.as_array())
+        .is_some_and(|a| !a.is_empty())
+    {
+        return None;
+    }
+    let threads = v.pointer("/data/repository/pullRequest/reviewThreads")?;
+    let nodes = threads.pointer("/nodes")?.as_array()?;
+    let unresolved = nodes
+        .iter()
+        .filter(|t| t.get("isResolved").and_then(|x| x.as_bool()) == Some(false))
+        .count() as u64;
+    let has_next = threads
+        .pointer("/pageInfo/hasNextPage")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
+    // If the first page already has an unresolved thread, it's not ready
+    // regardless of further pages. If the first page is all-resolved but more
+    // pages exist, the true count is unknown → None (fail closed).
+    if unresolved == 0 && has_next {
+        None
+    } else {
+        Some(unresolved)
+    }
 }
 
 pub fn parse_gh_pr(v: &Value, threads_unresolved: Option<u64>) -> Result<PrStatus, PrError> {
@@ -258,11 +308,23 @@ pub fn parse_gh_pr(v: &Value, threads_unresolved: Option<u64>) -> Result<PrStatu
         .and_then(|x| x.as_str())
         .unwrap_or("")
         .to_string();
+    let is_draft = v.get("isDraft").and_then(|x| x.as_bool()).unwrap_or(false);
     let mergeable = match v.get("mergeable").and_then(|x| x.as_str()) {
         Some("MERGEABLE") => Some(true),
         Some("CONFLICTING") => Some(false),
         _ => None,
     };
+    let merge_state_status = v
+        .get("mergeStateStatus")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_uppercase());
+    // States that mean "not mergeable right now". UNKNOWN = GitHub still
+    // computing → fail closed.
+    let merge_state_bad = matches!(
+        merge_state_status.as_deref(),
+        Some("DIRTY") | Some("BLOCKED") | Some("DRAFT") | Some("UNKNOWN")
+    );
     let checks = count_gh_checks(v.get("statusCheckRollup"));
     let review_decision = v
         .get("reviewDecision")
@@ -275,20 +337,27 @@ pub fn parse_gh_pr(v: &Value, threads_unresolved: Option<u64>) -> Result<PrStatu
         .map(|a| a.len() as u64)
         .unwrap_or(0);
 
-    let ready_to_merge = compute_ready(
-        &state,
+    let ready_to_merge = MergeGate {
+        state: &state,
+        is_draft,
         mergeable,
-        &checks,
-        review_decision.as_deref(),
+        merge_state_bad,
+        checks: &checks,
+        checks_known: true, // rollup is part of the (succeeded) pr-view call
+        changes_requested: review_decision.as_deref() == Some("CHANGES_REQUESTED"),
         threads_unresolved,
-    );
+        threads_applicable: true,
+    }
+    .ready();
 
     Ok(PrStatus {
         forge: "github".into(),
         number,
         state,
         title,
+        is_draft,
         mergeable,
+        merge_state_status,
         checks,
         review_decision,
         review_threads_unresolved: threads_unresolved,
@@ -341,6 +410,14 @@ async fn forgejo_pr_status(
     repo: &str,
     number: u64,
 ) -> Result<PrStatus, PrError> {
+    // owner/repo come from a git remote; keep them to safe path segments so
+    // they can't inject extra URL path/query.
+    if !is_safe_path_segment(owner) || !is_safe_path_segment(repo) {
+        return Err(err(
+            "BAD_REMOTE",
+            format!("unsafe owner/repo in remote: {owner}/{repo}"),
+        ));
+    }
     let token = resolve_forgejo_token(host).ok_or_else(|| {
         err(
             "NO_TOKEN",
@@ -350,8 +427,10 @@ async fn forgejo_pr_status(
     let base = format!("https://{host}/api/v1/repos/{owner}/{repo}");
     let headers = vec![("Authorization".to_string(), format!("token {token}"))];
 
+    // Redirects disabled: a direct API call shouldn't redirect, and following
+    // one could resend the auth header to another host.
     let pr_url = format!("{base}/pulls/{number}");
-    let resp = curl::http_request(&pr_url, "GET", &headers, None, true, 30)
+    let resp = curl::http_request(&pr_url, "GET", &headers, None, false, 30)
         .await
         .map_err(|e| err("HTTP", e.to_string()))?;
     if resp.status_code == 404 {
@@ -366,29 +445,34 @@ async fn forgejo_pr_status(
     let pr: Value = serde_json::from_str(&resp.body)
         .map_err(|e| err("PARSE", format!("invalid forgejo JSON: {e}")))?;
 
-    // CI status for the PR head commit.
-    let checks = match pr
+    // CI status for the PR head commit. checks_known is false if we couldn't
+    // determine it (missing sha, HTTP/parse failure) → readiness fails closed.
+    let (checks, checks_known) = match pr
         .get("head")
         .and_then(|h| h.get("sha"))
         .and_then(|s| s.as_str())
     {
         Some(sha) => {
             let st_url = format!("{base}/commits/{sha}/status");
-            match curl::http_request(&st_url, "GET", &headers, None, true, 30).await {
-                Ok(r) if r.status_code < 400 => serde_json::from_str::<Value>(&r.body)
-                    .ok()
-                    .map(|v| count_forgejo_checks(&v))
-                    .unwrap_or_default(),
-                _ => ChecksSummary::default(),
+            match curl::http_request(&st_url, "GET", &headers, None, false, 30).await {
+                Ok(r) if r.status_code < 400 => match serde_json::from_str::<Value>(&r.body) {
+                    Ok(v) => (count_forgejo_checks(&v), true),
+                    Err(_) => (ChecksSummary::default(), false),
+                },
+                _ => (ChecksSummary::default(), false),
             }
         }
-        None => ChecksSummary::default(),
+        None => (ChecksSummary::default(), false),
     };
 
-    parse_forgejo_pr(&pr, checks)
+    parse_forgejo_pr(&pr, checks, checks_known)
 }
 
-pub fn parse_forgejo_pr(pr: &Value, checks: ChecksSummary) -> Result<PrStatus, PrError> {
+pub fn parse_forgejo_pr(
+    pr: &Value,
+    checks: ChecksSummary,
+    checks_known: bool,
+) -> Result<PrStatus, PrError> {
     let number = pr
         .get("number")
         .and_then(|x| x.as_u64())
@@ -407,19 +491,33 @@ pub fn parse_forgejo_pr(pr: &Value, checks: ChecksSummary) -> Result<PrStatus, P
             .unwrap_or("open")
             .to_lowercase()
     };
+    let is_draft = pr.get("draft").and_then(|x| x.as_bool()).unwrap_or(false);
     let mergeable = pr.get("mergeable").and_then(|x| x.as_bool());
     let comments = pr.get("comments").and_then(|x| x.as_u64()).unwrap_or(0);
 
     // Forgejo has no GraphQL; thread resolution isn't exposed uniformly and the
-    // review-bot uses issue comments, not threads. Leave the count unknown.
-    let ready_to_merge = compute_ready(&state, mergeable, &checks, None, None);
+    // review-bot uses issue comments, not threads. Thread signal not applicable.
+    let ready_to_merge = MergeGate {
+        state: &state,
+        is_draft,
+        mergeable,
+        merge_state_bad: false,
+        checks: &checks,
+        checks_known,
+        changes_requested: false,
+        threads_unresolved: None,
+        threads_applicable: false,
+    }
+    .ready();
 
     Ok(PrStatus {
         forge: "forgejo".into(),
         number,
         state,
         title,
+        is_draft,
         mergeable,
+        merge_state_status: None,
         checks,
         review_decision: None,
         review_threads_unresolved: None,
@@ -428,20 +526,44 @@ pub fn parse_forgejo_pr(pr: &Value, checks: ChecksSummary) -> Result<PrStatus, P
     })
 }
 
-/// Forgejo combined commit status: `{ state, statuses: [{ status }] }`.
+/// Forgejo combined commit status: `{ state, statuses: [{ status }] }`. When the
+/// `statuses` array is empty, fall back to the combined top-level `state` so a
+/// failing/pending overall status still registers.
 fn count_forgejo_checks(status_resp: &Value) -> ChecksSummary {
     let mut c = ChecksSummary::default();
-    let Some(arr) = status_resp.get("statuses").and_then(|x| x.as_array()) else {
-        return c;
-    };
-    for s in arr {
+    let arr = status_resp
+        .get("statuses")
+        .and_then(|x| x.as_array())
+        .cloned()
+        .unwrap_or_default();
+    for s in &arr {
         match s.get("status").and_then(|x| x.as_str()).unwrap_or("") {
             "success" => c.passing += 1,
             "pending" => c.pending += 1,
             _ => c.failing += 1, // failure, error, warning
         }
     }
+    // No per-context statuses but a non-success combined state → reflect it so
+    // readiness isn't granted on an unevaluated/failed overall status.
+    if arr.is_empty() {
+        match status_resp
+            .get("state")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+        {
+            "pending" => c.pending += 1,
+            "failure" | "error" => c.failing += 1,
+            _ => {} // "success" or "" → no checks configured, leave empty
+        }
+    }
     c
+}
+
+/// Allow only safe characters in a URL path segment (owner/repo).
+fn is_safe_path_segment(s: &str) -> bool {
+    !s.is_empty()
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
 }
 
 /// Resolve a Forgejo token: FORGEJO_TOKEN env, else fj's keys.json by host
@@ -515,11 +637,20 @@ mod tests {
     }
 
     #[test]
-    fn remote_ssh_with_port() {
+    fn remote_ssh_with_port_is_preserved() {
+        // The port must survive — it's needed to build the API URL.
         let (h, o, r) = parse_remote_url("ssh://git@git.example.com:222/team/proj").unwrap();
-        assert_eq!(h, "git.example.com");
+        assert_eq!(h, "git.example.com:222");
         assert_eq!(o, "team");
         assert_eq!(r, "proj");
+    }
+
+    #[test]
+    fn remote_https_port_preserved_and_userinfo_dropped() {
+        let (h, o, r) = parse_remote_url("https://user:pw@forge.corp:8443/grp/app.git").unwrap();
+        assert_eq!(h, "forge.corp:8443");
+        assert_eq!(o, "grp");
+        assert_eq!(r, "app");
     }
 
     #[test]
@@ -535,6 +666,11 @@ mod tests {
         assert_eq!(detect_forge_from_host("gitlab.com"), "gitlab");
         assert_eq!(detect_forge_from_host("gitlab.internal.corp"), "gitlab");
         assert_eq!(detect_forge_from_host("codeberg.org"), "forgejo");
+        // Port is ignored for matching.
+        assert_eq!(detect_forge_from_host("git.example.com:222"), "forgejo");
+        // Suffix match: a look-alike host is NOT github.
+        assert_eq!(detect_forge_from_host("github.com.evil.example"), "forgejo");
+        assert_eq!(detect_forge_from_host("api.github.com"), "github");
     }
 
     #[test]
@@ -654,18 +790,86 @@ mod tests {
     }
 
     #[test]
+    fn gh_pr_draft_not_ready() {
+        let v = json!({
+            "number": 11, "state": "OPEN", "title": "Draft", "isDraft": true,
+            "mergeable": "MERGEABLE", "statusCheckRollup": [{"conclusion": "SUCCESS"}],
+            "reviewDecision": "APPROVED", "comments": []
+        });
+        let pr = parse_gh_pr(&v, Some(0)).unwrap();
+        assert!(pr.is_draft);
+        assert!(!pr.ready_to_merge);
+    }
+
+    #[test]
+    fn gh_pr_bad_merge_state_not_ready() {
+        for st in ["DIRTY", "BLOCKED", "UNKNOWN"] {
+            let v = json!({
+                "number": 12, "state": "OPEN", "title": "x", "mergeable": "MERGEABLE",
+                "mergeStateStatus": st, "statusCheckRollup": [{"conclusion": "SUCCESS"}],
+                "reviewDecision": "APPROVED", "comments": []
+            });
+            let pr = parse_gh_pr(&v, Some(0)).unwrap();
+            assert!(!pr.ready_to_merge, "{st} should block readiness");
+        }
+        // CLEAN does not block.
+        let v = json!({
+            "number": 12, "state": "OPEN", "title": "x", "mergeable": "MERGEABLE",
+            "mergeStateStatus": "CLEAN", "statusCheckRollup": [{"conclusion": "SUCCESS"}],
+            "reviewDecision": "APPROVED", "comments": []
+        });
+        assert!(parse_gh_pr(&v, Some(0)).unwrap().ready_to_merge);
+    }
+
+    #[test]
+    fn gh_pr_unknown_threads_fail_closed() {
+        let v = json!({
+            "number": 13, "state": "OPEN", "title": "x", "mergeable": "MERGEABLE",
+            "statusCheckRollup": [{"conclusion": "SUCCESS"}], "reviewDecision": "APPROVED",
+            "comments": []
+        });
+        // threads unknown (GraphQL failed) → not ready (fail closed).
+        let pr = parse_gh_pr(&v, None).unwrap();
+        assert!(!pr.ready_to_merge);
+    }
+
+    #[test]
     fn count_unresolved_threads_graphql() {
         let resp = json!({
-            "data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": [
-                {"isResolved": true},
-                {"isResolved": false},
-                {"isResolved": false},
-                {"isResolved": true}
-            ]}}}}
+            "data": {"repository": {"pullRequest": {"reviewThreads": {
+                "nodes": [
+                    {"isResolved": true}, {"isResolved": false},
+                    {"isResolved": false}, {"isResolved": true}
+                ],
+                "pageInfo": {"hasNextPage": false}
+            }}}}
         });
-        assert_eq!(count_unresolved_threads(&resp), 2);
-        // Missing path → 0, never panics.
-        assert_eq!(count_unresolved_threads(&json!({})), 0);
+        assert_eq!(count_unresolved_threads(&resp), Some(2));
+        // Missing path → None (unknown), never panics.
+        assert_eq!(count_unresolved_threads(&json!({})), None);
+        // GraphQL errors → None.
+        assert_eq!(
+            count_unresolved_threads(&json!({"errors": [{"message": "x"}]})),
+            None
+        );
+        // All-resolved first page but more pages → None (undecidable).
+        let more = json!({"data": {"repository": {"pullRequest": {"reviewThreads": {
+            "nodes": [{"isResolved": true}], "pageInfo": {"hasNextPage": true}}}}}});
+        assert_eq!(count_unresolved_threads(&more), None);
+        // Unresolved on first page + more pages → Some (already not ready).
+        let more_unres = json!({"data": {"repository": {"pullRequest": {"reviewThreads": {
+            "nodes": [{"isResolved": false}], "pageInfo": {"hasNextPage": true}}}}}});
+        assert_eq!(count_unresolved_threads(&more_unres), Some(1));
+    }
+
+    #[test]
+    fn forgejo_combined_state_fallback() {
+        // Empty statuses but failing combined state → counts as failing.
+        let resp = json!({"state": "failure", "statuses": []});
+        assert_eq!(count_forgejo_checks(&resp).failing, 1);
+        // success + empty → no checks configured, all zero.
+        let ok = json!({"state": "success", "statuses": []});
+        assert_eq!(count_forgejo_checks(&ok), ChecksSummary::default());
     }
 
     #[test]
@@ -678,30 +882,29 @@ mod tests {
             "mergeable": false,
             "comments": 4
         });
-        let r = parse_forgejo_pr(&pr, ChecksSummary::default()).unwrap();
+        let r = parse_forgejo_pr(&pr, ChecksSummary::default(), true).unwrap();
         assert_eq!(r.state, "merged");
         assert_eq!(r.comments, 4);
         assert!(!r.ready_to_merge); // not open
     }
 
     #[test]
-    fn forgejo_pr_ready() {
+    fn forgejo_pr_ready_when_checks_known() {
         let pr = json!({
-            "number": 5,
-            "title": "Ready one",
-            "state": "open",
-            "merged": false,
-            "mergeable": true,
-            "comments": 0
+            "number": 5, "title": "Ready one", "state": "open",
+            "merged": false, "mergeable": true, "comments": 0
         });
         let checks = ChecksSummary {
             passing: 3,
             failing: 0,
             pending: 0,
         };
-        let r = parse_forgejo_pr(&pr, checks).unwrap();
+        let r = parse_forgejo_pr(&pr, checks.clone(), true).unwrap();
         assert_eq!(r.state, "open");
         assert!(r.ready_to_merge);
+        // Same PR but checks unknown (status fetch failed) → fail closed.
+        let r2 = parse_forgejo_pr(&pr, checks, false).unwrap();
+        assert!(!r2.ready_to_merge);
     }
 
     #[test]
