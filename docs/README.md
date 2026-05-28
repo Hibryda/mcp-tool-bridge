@@ -72,12 +72,12 @@ git host (GitHub, Forgejo, Gitea, GitLab).
   verifies + caches the matching native binary tarball under
   `${CLAUDE_PLUGIN_ROOT}/.bin-cache/v<version>/<triple>/`
 - `plugin/bin/test_launcher.sh` — 8 POSIX-shell tests for the launcher
-- `plugin/rules/` — context rule drafts (`bridge-read-inspection.md`,
-  `bridge-http-json.md`, `bridge-chaining.md`) that instruct agents to prefer
-  the bridge over Bash for covered command shapes. These drive adoption; the
-  PreToolUse suggest-hook proved to be a no-op (Claude Code does not inject
-  `additionalContext` on PreToolUse). Placement (global `~/.claude/rules/`,
-  per-project, or bundled) is left to the operator.
+- Adoption rules live in `.claude/rules/` (`70-bridge-read-inspection.md`,
+  `71-bridge-http-json.md`, `72-bridge-chaining.md`) — they instruct agents to
+  prefer the bridge over Bash for covered command shapes. These drive adoption;
+  the PreToolUse suggest-hook proved to be a no-op (Claude Code does not inject
+  `additionalContext` on PreToolUse). Staged in this repo; to be distributed to
+  global `~/.claude/rules/` and other projects by the operator.
 
 Install:
 ```sh

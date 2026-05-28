@@ -27,6 +27,11 @@ All operational rules live in `.claude/rules/`. Every `.md` file in that directo
 | 15 | `memora.md` | Persistent memory across sessions |
 | 16 | `sub-agents.md` | When to use sub-agents and team agents |
 | 17 | `document-imports.md` | Resolve @ imports in CLAUDE.md before acting |
+| 70 | `bridge-read-inspection.md` | Prefer bridge over Bash for read-only inspection (ls/find/ps/lsof/wc/diff/git-read/k8s/docker/sqlite) |
+| 71 | `bridge-http-json.md` | Use bridge `curl`, never `curl \| jq` / `curl \| python` |
+| 72 | `bridge-chaining.md` | Use `pipe`/`batch` instead of shell pipelines |
+
+Rules 70+ are the bridge-adoption rules (the PreToolUse suggest-hook is a no-op — see Memora `hook-suggest-mode-noop`). Staged here for this repo; to be distributed to global `~/.claude/rules/` and other projects.
 
 ## Domain Routing
 
