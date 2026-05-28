@@ -11,12 +11,12 @@ use serde::Serialize;
 use crate::git_log::{self, CommitEntry};
 use crate::git_status::{self, BranchInfo, GitError, StatusCounts, StatusEntry};
 
-/// Aggregate diff stat for the working tree (staged + unstaged vs HEAD).
+/// Aggregate diff stat for the working tree (tracked uncommitted changes vs HEAD).
 #[derive(Debug, Serialize, Clone, Default, PartialEq)]
 pub struct DiffStat {
-    pub files_changed: u32,
-    pub additions: u32,
-    pub deletions: u32,
+    pub files_changed: u64,
+    pub additions: u64,
+    pub deletions: u64,
 }
 
 /// Full snapshot result.
@@ -26,7 +26,8 @@ pub struct RepoSnapshot {
     pub clean: bool,
     pub counts: StatusCounts,
     pub entries: Vec<StatusEntry>,
-    /// Uncommitted changes vs HEAD (staged + unstaged), aggregated.
+    /// Tracked uncommitted changes vs HEAD (staged + unstaged), aggregated.
+    /// Excludes untracked files (they appear in `entries`/`counts.untracked`).
     pub working_diff: DiffStat,
     pub recent_commits: Vec<CommitEntry>,
 }
@@ -36,11 +37,15 @@ pub async fn repo_snapshot(path: &str, log_limit: u32) -> Result<RepoSnapshot, G
     // git_status canonicalizes + checks the git version; let it be the gate.
     let status = git_status::git_status(path, true).await?;
 
-    // git_log can legitimately fail on an unborn HEAD (fresh repo, no commits).
-    // A snapshot of a commit-less repo is still useful, so degrade to empty.
-    let recent_commits = match git_log::git_log(path, log_limit, false, None, None, None).await {
-        Ok(r) => r.commits,
-        Err(_) => Vec::new(),
+    // Only an unborn HEAD (fresh repo, no commits) legitimately has no log; in
+    // that case degrade to empty. Any other git_log failure is a real error and
+    // must propagate rather than be silently masked as "no commits".
+    let recent_commits = if head_exists(path).await {
+        git_log::git_log(path, log_limit, false, None, None, None)
+            .await?
+            .commits
+    } else {
+        Vec::new()
     };
 
     let working_diff = working_tree_diffstat(path).await;
@@ -53,6 +58,16 @@ pub async fn repo_snapshot(path: &str, log_limit: u32) -> Result<RepoSnapshot, G
         working_diff,
         recent_commits,
     })
+}
+
+/// Whether the repo has a resolvable HEAD commit (false on an unborn HEAD).
+async fn head_exists(path: &str) -> bool {
+    tokio::process::Command::new("git")
+        .args(["-C", path, "rev-parse", "--verify", "--quiet", "HEAD"])
+        .output()
+        .await
+        .map(|o| o.status.success())
+        .unwrap_or(false)
 }
 
 /// Run `git diff HEAD --numstat` and aggregate. Returns zeros on any failure
@@ -93,12 +108,12 @@ fn parse_numstat(text: &str) -> DiffStat {
         if cols.next().is_none() {
             continue;
         }
-        stat.files_changed += 1;
-        if let Ok(n) = added.parse::<u32>() {
-            stat.additions += n;
+        stat.files_changed = stat.files_changed.saturating_add(1);
+        if let Ok(n) = added.parse::<u64>() {
+            stat.additions = stat.additions.saturating_add(n);
         }
-        if let Ok(n) = deleted.parse::<u32>() {
-            stat.deletions += n;
+        if let Ok(n) = deleted.parse::<u64>() {
+            stat.deletions = stat.deletions.saturating_add(n);
         }
     }
     stat
