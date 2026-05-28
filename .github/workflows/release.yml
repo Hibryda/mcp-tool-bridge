@@ -92,7 +92,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download all tarball artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
