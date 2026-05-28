@@ -38,8 +38,14 @@ pub struct PrStatus {
     /// GitHub only: APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED. None elsewhere.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub review_decision: Option<String>,
+    /// Unresolved review-thread count. GitHub only (via GraphQL). None for
+    /// Forgejo/GitLab — those forges don't expose it the same way (Forgejo has
+    /// no GraphQL; its review-bot findings are issue comments, not threads).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub review_threads_unresolved: Option<u64>,
     pub comments: u64,
-    /// open AND mergeable AND no failing/pending checks AND not CHANGES_REQUESTED.
+    /// open AND mergeable AND no failing/pending checks AND not CHANGES_REQUESTED
+    /// AND no unresolved review threads (when that count is known).
     pub ready_to_merge: bool,
 }
 
@@ -140,12 +146,14 @@ fn compute_ready(
     mergeable: Option<bool>,
     checks: &ChecksSummary,
     review_decision: Option<&str>,
+    threads_unresolved: Option<u64>,
 ) -> bool {
     state == "open"
         && mergeable == Some(true)
         && checks.failing == 0
         && checks.pending == 0
         && review_decision != Some("CHANGES_REQUESTED")
+        && threads_unresolved.is_none_or(|n| n == 0)
 }
 
 // ── GitHub backend ──────────────────────────────────────────────────
@@ -186,10 +194,56 @@ async fn github_pr_status(owner: &str, repo: &str, number: u64) -> Result<PrStat
 
     let v: Value = serde_json::from_slice(&out.stdout)
         .map_err(|e| err("PARSE", format!("invalid gh JSON: {e}")))?;
-    parse_gh_pr(&v)
+
+    // Second call: unresolved review-thread count via GraphQL (not exposed by
+    // `gh pr view --json`). Best-effort — a failure leaves the count unknown
+    // (None) rather than blocking the whole status.
+    let threads_unresolved = github_unresolved_threads(owner, repo, number).await;
+
+    parse_gh_pr(&v, threads_unresolved)
 }
 
-pub fn parse_gh_pr(v: &Value) -> Result<PrStatus, PrError> {
+/// Count unresolved review threads via GraphQL. Returns None on any failure.
+async fn github_unresolved_threads(owner: &str, repo: &str, number: u64) -> Option<u64> {
+    let query = "query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved}}}}}";
+    let mut cmd = tokio::process::Command::new(crate::gh_api::which_gh());
+    cmd.args([
+        "api",
+        "graphql",
+        "-f",
+        &format!("query={query}"),
+        "-F",
+        &format!("o={owner}"),
+        "-F",
+        &format!("r={repo}"),
+        "-F",
+        &format!("n={number}"),
+    ]);
+    if let Ok(token) = std::env::var("GITHUB_PERSONAL_ACCESS_TOKEN") {
+        cmd.env("GH_TOKEN", token);
+    }
+    let out = cmd.output().await.ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let v: Value = serde_json::from_slice(&out.stdout).ok()?;
+    Some(count_unresolved_threads(&v))
+}
+
+/// Pure: count `isResolved == false` nodes in a GraphQL reviewThreads response.
+fn count_unresolved_threads(v: &Value) -> u64 {
+    v.pointer("/data/repository/pullRequest/reviewThreads/nodes")
+        .and_then(|n| n.as_array())
+        .map(|nodes| {
+            nodes
+                .iter()
+                .filter(|t| t.get("isResolved").and_then(|x| x.as_bool()) == Some(false))
+                .count() as u64
+        })
+        .unwrap_or(0)
+}
+
+pub fn parse_gh_pr(v: &Value, threads_unresolved: Option<u64>) -> Result<PrStatus, PrError> {
     let number = v
         .get("number")
         .and_then(|x| x.as_u64())
@@ -221,7 +275,13 @@ pub fn parse_gh_pr(v: &Value) -> Result<PrStatus, PrError> {
         .map(|a| a.len() as u64)
         .unwrap_or(0);
 
-    let ready_to_merge = compute_ready(&state, mergeable, &checks, review_decision.as_deref());
+    let ready_to_merge = compute_ready(
+        &state,
+        mergeable,
+        &checks,
+        review_decision.as_deref(),
+        threads_unresolved,
+    );
 
     Ok(PrStatus {
         forge: "github".into(),
@@ -231,6 +291,7 @@ pub fn parse_gh_pr(v: &Value) -> Result<PrStatus, PrError> {
         mergeable,
         checks,
         review_decision,
+        review_threads_unresolved: threads_unresolved,
         comments,
         ready_to_merge,
     })
@@ -349,7 +410,9 @@ pub fn parse_forgejo_pr(pr: &Value, checks: ChecksSummary) -> Result<PrStatus, P
     let mergeable = pr.get("mergeable").and_then(|x| x.as_bool());
     let comments = pr.get("comments").and_then(|x| x.as_u64()).unwrap_or(0);
 
-    let ready_to_merge = compute_ready(&state, mergeable, &checks, None);
+    // Forgejo has no GraphQL; thread resolution isn't exposed uniformly and the
+    // review-bot uses issue comments, not threads. Leave the count unknown.
+    let ready_to_merge = compute_ready(&state, mergeable, &checks, None, None);
 
     Ok(PrStatus {
         forge: "forgejo".into(),
@@ -359,6 +422,7 @@ pub fn parse_forgejo_pr(pr: &Value, checks: ChecksSummary) -> Result<PrStatus, P
         mergeable,
         checks,
         review_decision: None,
+        review_threads_unresolved: None,
         comments,
         ready_to_merge,
     })
@@ -517,12 +581,13 @@ mod tests {
             "reviewDecision": "APPROVED",
             "comments": [{"id": 1}, {"id": 2}]
         });
-        let pr = parse_gh_pr(&v).unwrap();
+        let pr = parse_gh_pr(&v, Some(0)).unwrap();
         assert_eq!(pr.number, 42);
         assert_eq!(pr.state, "open");
         assert_eq!(pr.mergeable, Some(true));
         assert_eq!(pr.checks.passing, 1);
         assert_eq!(pr.comments, 2);
+        assert_eq!(pr.review_threads_unresolved, Some(0));
         assert!(pr.ready_to_merge);
     }
 
@@ -537,7 +602,7 @@ mod tests {
             "reviewDecision": "CHANGES_REQUESTED",
             "comments": []
         });
-        let pr = parse_gh_pr(&v).unwrap();
+        let pr = parse_gh_pr(&v, Some(0)).unwrap();
         assert!(!pr.ready_to_merge);
     }
 
@@ -552,7 +617,7 @@ mod tests {
             "reviewDecision": "APPROVED",
             "comments": []
         });
-        let pr = parse_gh_pr(&v).unwrap();
+        let pr = parse_gh_pr(&v, Some(0)).unwrap();
         assert!(!pr.ready_to_merge);
     }
 
@@ -566,9 +631,41 @@ mod tests {
             "statusCheckRollup": [],
             "comments": []
         });
-        let pr = parse_gh_pr(&v).unwrap();
+        let pr = parse_gh_pr(&v, None).unwrap();
         assert_eq!(pr.mergeable, Some(false));
         assert!(!pr.ready_to_merge);
+    }
+
+    #[test]
+    fn gh_pr_not_ready_unresolved_threads() {
+        let v = json!({
+            "number": 10,
+            "state": "OPEN",
+            "title": "Has open threads",
+            "mergeable": "MERGEABLE",
+            "statusCheckRollup": [{"conclusion": "SUCCESS"}],
+            "reviewDecision": "APPROVED",
+            "comments": []
+        });
+        // Everything green, but 2 unresolved review threads block readiness.
+        let pr = parse_gh_pr(&v, Some(2)).unwrap();
+        assert_eq!(pr.review_threads_unresolved, Some(2));
+        assert!(!pr.ready_to_merge);
+    }
+
+    #[test]
+    fn count_unresolved_threads_graphql() {
+        let resp = json!({
+            "data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": [
+                {"isResolved": true},
+                {"isResolved": false},
+                {"isResolved": false},
+                {"isResolved": true}
+            ]}}}}
+        });
+        assert_eq!(count_unresolved_threads(&resp), 2);
+        // Missing path → 0, never panics.
+        assert_eq!(count_unresolved_threads(&json!({})), 0);
     }
 
     #[test]
