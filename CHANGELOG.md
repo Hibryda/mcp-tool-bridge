@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Adoption rule drafts** (`plugin/rules/`) — `bridge-read-inspection.md`, `bridge-http-json.md`, `bridge-chaining.md`: prescriptive command→tool tables instructing agents to prefer the bridge over Bash for covered shapes, each with explicit "when Bash is still correct" boundaries. Replaces the PreToolUse suggest-hook as the adoption mechanism.
+
+### Notes
+- **Adoption finding (2026-05-28):** measured ~1.6% MCP tool usage vs equivalent Bash across 26k transcripts. The PreToolUse suggest-hook is a no-op — Claude Code does not inject `hookSpecificOutput.additionalContext` on PreToolUse (it fired 108×/20 sessions with empty model-visible content). Pivoting to context rules; suggest-hook slated for removal.
+- **Composite-tool roadmap (2026-05-28):** transcript mining ranked `repo_snapshot` + `pr_status` (read-only) as the highest-value next tools; `pr_merge` / `git_commit_push` (mutating) accepted in principle behind a verify-then-act confirm gate.
+
+## [0.1.0] - 2026-05-05
+
+First released version. Installed via the Claude Code marketplace; tools surface as `mcp__plugin_mcp-tool-bridge_tool-bridge__*`.
+
+### Added
 - **Claude Code marketplace + multi-arch release pipeline** — repo root carries `.claude-plugin/marketplace.json` so `claude plugin marketplace add <repo-url>` works against any git host (GitHub canonical, Forgejo / Gitea / GitLab mirrors). `plugin/bin/launcher.sh` is a POSIX-shell launcher that detects the host triple, downloads the matching tarball from `${MCP_TOOL_BRIDGE_RELEASE_BASE_URL}/v<version>/`, verifies the SHA-256 against `plugin/checksums.txt`, and caches under `${CLAUDE_PLUGIN_ROOT}/.bin-cache/`. Pinned version in `plugin/version`. `MCP_TOOL_BRIDGE_BIN_DIR` env override skips the download path for local development. 8 launcher tests cover argument validation, override, warm cache, cold-path download (against a local HTTP server), checksum tampering rejection.
 - **`.github/workflows/release.yml`** — tag-triggered (`v*`), four-target build matrix on native runners (x86_64-linux, aarch64-linux, x86_64-darwin, aarch64-darwin), publishes tarballs + `checksums.txt` to GitHub Releases, auto-commits the new checksums back to `master`.
 - **PreToolUse hook** (`mcp-tool-bridge-hook`) — parses Bash invocations of `ls`, `wc`, `find`, `diff -u`, `lsof`, `ps`, `git status|log|show`; nudges agents toward the structured MCP equivalent. Modes: `suggest` (default, JSON `additionalContext`), `enforce` (exit 2), `off`. Conservative parser refuses pipelines/redirections/unknown flags rather than risk wrong rewrites. 25 unit + 11 e2e tests, including a 300-command real-history suite (~8% suggestion rate, no false-positive blocks).

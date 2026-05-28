@@ -4,7 +4,9 @@
 
 ## Status
 
-v0.1 complete — 20 tools, 103 unit tests, 1740 integration tests. PreToolUse hook (`crates/hook/`, 25 unit + 11 e2e tests) and Claude Code plugin (`plugin/`) bundled. Repo doubles as a marketplace (`.claude-plugin/marketplace.json`) with a 4-arch release pipeline; `plugin/bin/launcher.sh` handles checksum-verified binary download per host. CI green on ubuntu+macos. Pushed to https://github.com/Hibryda/mcp-tool-bridge.
+v0.1.0 released 2026-05-05 — 20 tools, 103 unit tests, 1740 integration tests. PreToolUse hook (`crates/hook/`, 25 unit + 11 e2e tests) and Claude Code plugin (`plugin/`) bundled. Repo doubles as a marketplace (`.claude-plugin/marketplace.json`) with a 4-arch release pipeline; `plugin/bin/launcher.sh` handles checksum-verified binary download per host. CI green on ubuntu+macos. Installed + verified working at https://github.com/Hibryda/mcp-tool-bridge.
+
+**Adoption:** the PreToolUse suggest-hook is a no-op (Claude Code does not inject `additionalContext` on PreToolUse — measured ~1.6% tool adoption). Driving adoption via context rules in `plugin/rules/` instead. Next: composite tools `repo_snapshot` + `pr_status` (read-only), then gated mutating tools. See Memora `composite-tool-roadmap`, `hook-suggest-mode-noop`.
 
 ## Tech Stack
 

@@ -2,7 +2,19 @@
 
 ## Remaining
 
-- [ ] First release tag (`v0.1.0`) — push to validate release workflow end-to-end
+### Adoption (the 1.6% problem — see Memora `hook-suggest-mode-noop`)
+- [ ] Place the `plugin/rules/*.md` drafts (global `~/.claude/rules/` vs per-project vs bundled — operator decides)
+- [ ] Remove or disable the PreToolUse suggest-hook — it's a no-op (Claude Code doesn't inject `additionalContext` on PreToolUse); rules replace it
+- [ ] Once adopted, re-measure tool usage vs the 1.6% baseline
+
+### Composite tools (see Memora `composite-tool-roadmap`)
+- [ ] `repo_snapshot` (read-only) — one call → status + ahead/behind + log -n + diff --stat (collapses the 1,052× status→diff→log combo)
+- [ ] `pr_status` (read-only, forge-agnostic) — PR ref → {state, mergeable, checks_passing, unresolved_threads, comment_count} over gh/fj/Forgejo-REST
+- [ ] `pr_merge` (mutating) — verify-then-act + `confirm:true` gate; refuse on failing checks / unresolved threads
+- [ ] `git_commit_push` (mutating) — crosses the read-only boundary; opt-in write-tools set, off by default
+- [ ] Decide the read→write boundary: keep bridge read-only, or add a gated opt-in write-tools tier
+
+### Distribution / infra
 - [ ] Forgejo Releases mirror — optional `release.yml` step to push tarballs to `git.hemoglobina.store` when `FORGEJO_RELEASE_TOKEN` secret is present
 - [ ] GPG / cosign signing of release artifacts (deferred until first org rollout)
 - [ ] --log-calls flag for call logging (JSONL format for usage analysis)
@@ -18,29 +30,15 @@ See `DEFERRED.md` for the full list with deferral reasons.
 - [ ] Composite tools (ls_count, wc_multi) — based on call logging data
 - [ ] Batch-of-pipes (nested pipe inside batch operations)
 
-## Completed
+## Completed (most recent 10; full history in git log)
 
-- [x] Choose MCP crate — rmcp 1.3.0 | Done: 2026-03-28
-- [x] Implement bridge-core: shared types, run_command | Done: 2026-03-28
-- [x] Implement `ls`, `wc`, `diff`, `lsof`, `find`, `curl` (Tier 1) | Done: 2026-03-28
-- [x] Implement `kubectl`, `docker`, `sqlite3` (Tier 2) | Done: 2026-03-28
-- [x] Implement `batch` and `pipe` meta-tools | Done: 2026-03-28
-- [x] Implement `git_status`, `git_log`, `git_show`, `gh_api`, `ps` | Done: 2026-03-29
-- [x] 740 integration tests for original 15 tools | Done: 2026-03-28
-- [x] 1000 integration tests for 5 new tools (1740 total) | Done: 2026-03-29
-- [x] Fix lsof protocol+port flag combination | Done: 2026-03-28
-- [x] Fix git_log parse_warnings always-serialized | Done: 2026-03-29
-- [x] GitHub Actions CI (ubuntu+macos, all green) | Done: 2026-04-27
-- [x] DEFERRED.md governance doc | Done: 2026-04-27
-- [x] Push to GitHub (https://github.com/Hibryda/mcp-tool-bridge) | Done: 2026-04-27
-- [x] Fix sqlite path validation for macOS tempdir | Done: 2026-04-27
-- [x] Tier 1 e2e: Rust harness + 139 tests (ports Python harness) | Done: 2026-04-27
-- [x] Tier 2: 10 snapshots + 10 property tests + 11 MCP protocol + 5 doc tests | Done: 2026-04-27
 - [x] Tier 3: 17 failure-mode tests (concurrency, limits, IO/permissions, unicode) | Done: 2026-04-27
 - [x] Tier 4: criterion benches + cargo-llvm-cov coverage + nightly mutants | Done: 2026-04-27
 - [x] PreToolUse hook (`crates/hook/`) — shell-words tokenizer + 7 command handlers, 25 unit + 11 e2e tests | Done: 2026-04-27
 - [x] Claude Code plugin packaging (`plugin/`) — manifest + .mcp.json + hooks.json | Done: 2026-04-27
-- [x] CI: hook tests + plugin manifest validation in test job | Done: 2026-04-27
 - [x] Claude Code marketplace manifest + multi-arch launcher with SHA-256 verification | Done: 2026-05-05
 - [x] Release workflow (4-target native matrix, GitHub Releases, auto-commit checksums) | Done: 2026-05-05
-- [x] 8 POSIX-shell launcher tests (argv, override, warm/cold cache, checksum tampering) | Done: 2026-05-05
+- [x] v0.1.0 release tag — pipeline validated end-to-end, plugin installed + tools live | Done: 2026-05-05
+- [x] Usage analysis (26k transcripts) — measured 1.6% adoption; found suggest-hook is a no-op | Done: 2026-05-28
+- [x] Transcript pattern-mining for composite-tool candidates | Done: 2026-05-28
+- [x] Draft adoption rules (`plugin/rules/`: read-inspection, http-json, chaining) | Done: 2026-05-28
