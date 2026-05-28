@@ -295,6 +295,106 @@ fn show_root_commit_has_no_parents() {
 // ── repo_snapshot ───────────────────────────────────────────────────
 
 #[test]
+fn snapshot_empty_repo_unborn_head() {
+    // Fresh repo, no commits: snapshot must not error, commits empty, diff zero.
+    let d = TempDir::new().unwrap();
+    Command::new("git")
+        .args(["init", "-q", "-b", "main"])
+        .current_dir(d.path())
+        .output()
+        .unwrap();
+    let mut s = Server::spawn(&[]);
+    let r = s.call("repo_snapshot", json!({"path": d.path()}));
+    assert!(
+        r.success(),
+        "unborn HEAD should not error: {}",
+        r.content_text
+    );
+    assert_eq!(r.data["recent_commits"].as_array().unwrap().len(), 0);
+    assert_eq!(r.data["working_diff"]["files_changed"], 0);
+}
+
+#[test]
+fn snapshot_detached_head_does_not_error() {
+    let d = init_git_repo();
+    let prev = Command::new("git")
+        .args(["rev-parse", "HEAD~1"])
+        .current_dir(d.path())
+        .output()
+        .unwrap();
+    let prev = String::from_utf8(prev.stdout).unwrap().trim().to_string();
+    Command::new("git")
+        .args(["checkout", "-q", &prev])
+        .current_dir(d.path())
+        .output()
+        .unwrap();
+    let mut s = Server::spawn(&[]);
+    let r = s.call("repo_snapshot", json!({"path": d.path()}));
+    assert!(
+        r.success(),
+        "detached HEAD should not error: {}",
+        r.content_text
+    );
+    // Still reports commits reachable from the detached commit.
+    assert!(!r.data["recent_commits"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn snapshot_rename_and_delete_entries() {
+    let d = init_git_repo();
+    Command::new("git")
+        .args(["mv", "a.txt", "renamed.txt"])
+        .current_dir(d.path())
+        .output()
+        .unwrap();
+    std::fs::remove_file(d.path().join("b.txt")).unwrap();
+    let mut s = Server::spawn(&[]);
+    let r = s.call("repo_snapshot", json!({"path": d.path()}));
+    assert!(r.success());
+    let entries = r.data["entries"].as_array().unwrap();
+    assert!(
+        entries.iter().any(|e| e["status"] == "renamed"),
+        "expected a renamed entry: {:?}",
+        entries
+    );
+    assert!(
+        entries.iter().any(|e| e["status"] == "deleted"),
+        "expected a deleted entry: {:?}",
+        entries
+    );
+}
+
+#[test]
+fn snapshot_binary_change_counts_file_not_lines() {
+    let d = init_git_repo();
+    let bin = d.path().join("blob.bin");
+    std::fs::write(&bin, (0u8..=255).cycle().take(2048).collect::<Vec<u8>>()).unwrap();
+    Command::new("git")
+        .args(["add", "blob.bin"])
+        .current_dir(d.path())
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["commit", "-q", "-m", "add binary"])
+        .current_dir(d.path())
+        .output()
+        .unwrap();
+    // Mutate the binary so it shows in the working diff.
+    std::fs::write(
+        &bin,
+        (0u8..=255).rev().cycle().take(2048).collect::<Vec<u8>>(),
+    )
+    .unwrap();
+    let mut s = Server::spawn(&[]);
+    let r = s.call("repo_snapshot", json!({"path": d.path()}));
+    assert!(r.success());
+    // Binary file is counted as changed, but contributes 0 added/deleted lines.
+    assert!(r.data["working_diff"]["files_changed"].as_u64().unwrap() >= 1);
+    assert_eq!(r.data["working_diff"]["additions"], 0);
+    assert_eq!(r.data["working_diff"]["deletions"], 0);
+}
+
+#[test]
 fn snapshot_clean_repo() {
     let d = init_git_repo();
     let mut s = Server::spawn(&[]);
