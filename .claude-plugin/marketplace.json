@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "MCP server wrapping CLI tools (ls, wc, diff, find, lsof, ps, git, gh_api, kubectl, docker, sqlite, curl, repo_snapshot, pr_status) with structured JSON output, plus a PreToolUse hook.",
-    "version": "0.2.0"
+    "version": "0.2.1"
   },
   "plugins": [
     {

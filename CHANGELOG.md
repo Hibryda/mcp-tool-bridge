@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-05-28
+
+Hardening pass on `pr_status` + `repo_snapshot` from an independent Codex review.
+
+### Added
+- `pr_status` now reports `is_draft` (both forges) and `merge_state_status` (GitHub `mergeStateStatus`).
+
+### Changed
+- **`ready_to_merge` is now conservative and fail-closed.** It additionally requires: not a draft, GitHub `mergeStateStatus` not in {DIRTY, BLOCKED, DRAFT, UNKNOWN}, and that every signal is *known* — an unknown CI or review-thread result (failed lookup) blocks readiness instead of being treated as "fine". GitHub unresolved-thread counting now detects GraphQL `errors` and result-set truncation (>100 threads) and returns "unknown" rather than a false zero. Previously a branch-protected PR awaiting approval could report `ready_to_merge: true`.
+
+### Fixed
+- `parse_remote_url` now preserves the port for `ssh://`/`https://` remotes (self-hosted forges on non-standard ports were getting API calls to the wrong port) and drops URL userinfo.
+- `detect_forge_from_host` uses exact/suffix host matching (`api.github.com` → github; `github.com.evil.example` → not github) instead of substring `contains`.
+- Forgejo API calls disable redirect-following (avoids resending the auth header to another host) and validate `owner`/`repo` as safe path segments; the combined commit `state` is now honored when the per-context `statuses` array is empty.
+- `repo_snapshot` only degrades to empty commits on a genuine unborn HEAD; other `git log` failures now propagate instead of being silently masked. Diff counters widened to `u64` with saturating addition.
+- GraphQL variables for owner/repo passed via `-f` (string) instead of `-F` (typed), so a value can't be misinterpreted as a file or coerced.
+
 ## [0.2.0] - 2026-05-28
 
 ### Added
