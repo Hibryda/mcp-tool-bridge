@@ -20,18 +20,28 @@ All operational rules live in `.claude/rules/`. Every `.md` file in that directo
 | 08 | `branch-hygiene.md` | Branches, naming, clean state before refactors |
 | 09 | `dependency-discipline.md` | No deps without consent |
 | 10 | `code-consistency.md` | Match existing patterns |
-| 11 | `api-contracts.md` | Contract-first, flag breaking changes (path-conditional) |
-| 12 | `performance-awareness.md` | No N+1, no unbounded fetches (path-conditional) |
-| 13 | `logging-observability.md` | Structured logging, OTEL (path-conditional) |
-| 14 | `resilience-and-config.md` | Timeouts, circuit breakers, externalized config (path-conditional) |
+| 11 | `api-contracts.md` | Contract-first, flag breaking changes |
+| 12 | `performance-awareness.md` | No N+1, no unbounded fetches |
+| 13 | `logging-observability.md` | Structured logging, OTEL |
+| 14 | `resilience-and-config.md` | Timeouts, circuit breakers, externalized config |
 | 15 | `memora.md` | Persistent memory across sessions |
 | 16 | `sub-agents.md` | When to use sub-agents and team agents |
 | 17 | `document-imports.md` | Resolve @ imports in CLAUDE.md before acting |
-| 70 | `bridge-read-inspection.md` | Prefer bridge over Bash for read-only inspection (ls/find/ps/lsof/wc/diff/git-read/k8s/docker/sqlite) |
-| 71 | `bridge-http-json.md` | Use bridge `curl`, never `curl \| jq` / `curl \| python` |
-| 72 | `bridge-chaining.md` | Use `pipe`/`batch` instead of shell pipelines |
-
-Rules 70+ are the bridge-adoption rules (the PreToolUse suggest-hook is a no-op — see Memora `hook-suggest-mode-noop`). Staged here for this repo; to be distributed to global `~/.claude/rules/` and other projects.
+| 18 | `preexisting-issues.md` | Fix encountered issues; if complex, inform user and plan |
+| 19 | `no-self-driven-simplifications.md` | **SUPREME** — never silently cut scope or quality |
+| 20 | `clean-compilation-no-warnings.md` | Zero warnings, zero suppressed inconsistencies on touched modules |
+| 21 | `external-docs-verification.md` | Verify framework/library/API choices against current official docs |
+| 22 | `parallel-subagents-first.md` | Decomposable work runs in parallel by default |
+| 23 | `monitor-over-timered-watchers.md` | Use Monitor tool for multi-event async signals, not `sleep` polls |
+| 24 | `autonomous-execution-by-default.md` | Keep moving through agreed plan; confirm only at named gates |
+| 25 | `proactive-work-while-waiting.md` | Do independent useful work during async waits |
+| 26 | `structured-bookkeeping.md` | Structured PR comments + commit-body format for review rounds |
+| 27 | `borrowed-reference-repos.md` | Reference repos are read-only; verify `git status -sb` clean |
+| 28 | `intelligence-output-location.md` | Meta-repo intelligence outputs land at meta-repo root, not in submodules |
+| 29 | `reviewer-fix-ripple-discipline.md` | Inspect ripple effects when applying PR-reviewer fixes |
+| 70 | `bridge-read-inspection.md` | Use mcp-tool-bridge for read-only inspection of FS/process/git/container/cluster/DB state |
+| 71 | `bridge-http-json.md` | Use mcp-tool-bridge `curl` for HTTP/JSON, never hand-parse responses |
+| 72 | `bridge-chaining.md` | Use bridge `pipe`/`batch` to chain bridge tools, not shell glue |
 
 ## Domain Routing
 
